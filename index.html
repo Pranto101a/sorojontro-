@@ -83,6 +83,11 @@
       }
       .btn:hover{background:rgba(29,45,80,.75); border-color:#33538b}
       .btn:active{transform:scale(.98)}
+      .btn:disabled{
+        opacity:.45;
+        cursor:not-allowed;
+        transform:none;
+      }
       .btn.primary{background:linear-gradient(180deg, rgba(33,193,122,.9), rgba(16,145,90,.95)); border-color:#1b8d5c}
       .btn.primary:hover{background:linear-gradient(180deg, rgba(33,193,122,.98), rgba(16,145,90,1));}
       .btn.danger{background:linear-gradient(180deg, rgba(255,77,77,.9), rgba(185,35,35,.95)); border-color:#a92929}
@@ -260,12 +265,23 @@
       .footerHint{margin-top:8px; font-size:12px; color:var(--muted); text-align:center}
       .modalBackdrop{
         position:fixed; inset:0;
-        background:rgba(0,0,0,.55);
+        background:rgba(0,0,0,.68);
+        backdrop-filter: blur(3px);
         display:flex;
         align-items:center;
         justify-content:center;
         padding:18px;
         z-index:9999;
+      }
+      .modalBackdrop.dim{
+        /* Important full-screen interruption (default) */
+        background:rgba(0,0,0,.95);
+        backdrop-filter: none;
+      }
+      .modalBackdrop.passScreen{
+        /* Pass-and-play: hide the game UI completely behind an opaque background */
+        background: #000 url('assets/pass_bg.jpg') center/cover no-repeat;
+        backdrop-filter: none;
       }
       .modal{
         width:min(640px, 100%);
@@ -361,6 +377,9 @@
             <button class="btn blue" data-mode="ai">🔵 AI মোড (আপনি বনাম বট)</button>
             <button class="btn dark" data-mode="online_host">⚫ অনলাইন ম্যাচ হোস্ট</button>
             <button class="btn gray" data-mode="online_join">🔗 কোড দিয়ে যোগ দিন</button>
+            <div id="offline-note" class="notice hidden">
+              আপনি এখন অফলাইন। ইন্টারনেট ছাড়াই <b>Local</b> এবং <b>AI</b> মোড খেলতে পারবেন। অনলাইন মোড চালাতে ইন্টারনেট (ডাটা) লাগবে।
+            </div>
             <div class="notice">
               নোট: অনলাইন মোডে PeerJS ব্যবহার করা হয়েছে। Render-এ Node সার্ভার (PeerJS signaling + static hosting) ডিপ্লয় করলে নির্ভরযোগ্যভাবে মাল্টিপ্লেয়ার চলবে। HTTPS/ইন্টারনেট দরকার।
             </div>
@@ -470,6 +489,16 @@
 
       <!-- GAME -->
       <section id="screen-game" class="hidden">
+        <div id="gameover-panel" class="panel hidden" style="text-align:center; margin-bottom:14px;">
+          <div style="font-weight:1000; font-size:18px; letter-spacing:.5px;">
+            🏆 বিজয়ী: <span id="winner-name">-</span>
+          </div>
+          <div class="footerHint" style="margin-top:8px;">অভিনন্দন! চাইলে নতুন ম্যাচ শুরু করতে পারেন।</div>
+          <div style="margin-top:12px;">
+            <button id="btn-new-match" class="btn primary">নতুন ম্যাচ শুরু করুন</button>
+          </div>
+        </div>
+
         <div class="layout-game">
           <div class="panel">
             <div class="turnBanner">
@@ -498,7 +527,6 @@
           <div class="panel">
             <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
               <b style="letter-spacing:1px">ইভেন্ট লগ</b>
-              <button id="btn-reset" class="btn small danger">রিসেট</button>
             </div>
             <div class="divider"></div>
             <div id="logs" class="logs"></div>
@@ -540,10 +568,9 @@
         "কালো ডাকাত",
         "ছিচকে চোর",
         "নান্টু মিয়া",
-        "জীনের বাদশা",
       ];
 
-      const DEFAULT_ROLE_POOL = ["বীর বিক্রম", "ব্রহ্মদত্ত", "কালো ডাকাত", "পেটুক চন্দ্র", "জীনের বাদশা"];
+      const DEFAULT_ROLE_POOL = ["বীর বিক্রম", "ব্রহ্মদত্ত", "কালো ডাকাত", "পেটুক চন্দ্র", "ছিচকে চোর"];
 
       const ROLE_IMAGES = {
         "বীর বিক্রম": "images/bir_bikrom.jpg",
@@ -555,7 +582,6 @@
         "কালো ডাকাত": "images/kalu_dakat.jpg",
         "ছিচকে চোর": "images/chichke_chor.jpg",
         "নান্টু মিয়া": "images/nantu_miah.jpg",
-        "জীনের বাদশা": "images/jiner_badshah.jpg",
         "?": null,
       };
 
@@ -596,10 +622,6 @@
         "নান্টু মিয়া": {
           action: { type: "set_tax", label: "নান্টু মিয়া: ট্যাক্স বসান (১🪙 ট্যাক্স)", challengeable: true, blockable: false, cost: 0, targeted: false },
           blocks: [],
-        },
-        "জীনের বাদশা": {
-          action: null,
-          blocks: ["assassinate"],
         },
       };
 
@@ -651,7 +673,9 @@
       const actionHint = $("action-hint");
       const logsEl = $("logs");
       const playersEl = $("players");
-      const btnReset = $("btn-reset");
+      const btnNewMatch = $("btn-new-match");
+      const gameOverPanel = $("gameover-panel");
+      const winnerNameEl = $("winner-name");
 
       const modalBackdrop = $("modal-backdrop");
       const modalTitle = $("modal-title");
@@ -714,7 +738,11 @@
         }
       }
 
-      function tone(freq, ms, kind = "sine", gain = 0.035) {
+      // SFX volume tuning (mobile-friendly)
+      const SFX_GAIN_MULT = 2.2;  // overall volume boost
+      const SFX_GAIN_MAX = 0.25;  // safety cap to avoid harsh clipping
+
+      function tone(freq, ms, kind = "sine", gain = 0.075) {
         try {
           if (!audioEnabled) return;
           const ctx = ensureAudio();
@@ -723,12 +751,13 @@
           const g = ctx.createGain();
           o.type = kind;
           o.frequency.value = freq;
+          const finalGain = Math.min(SFX_GAIN_MAX, Math.max(0.0001, gain * SFX_GAIN_MULT));
           g.gain.value = 0.0001;
           o.connect(g);
           g.connect(ctx.destination);
           const t = ctx.currentTime;
           g.gain.setValueAtTime(0.0001, t);
-          g.gain.exponentialRampToValueAtTime(gain, t + 0.01);
+          g.gain.exponentialRampToValueAtTime(finalGain, t + 0.01);
           g.gain.exponentialRampToValueAtTime(0.0001, t + ms / 1000);
           o.start(t);
           o.stop(t + ms / 1000 + 0.02);
@@ -740,10 +769,10 @@
       function sfx(type) {
         try {
           if (!audioEnabled) return;
-          if (type === "click") return tone(520, 55, "triangle", 0.03);
-          if (type === "modal") return tone(392, 85, "sine", 0.03);
-          if (type === "turn") return tone(660, 95, "triangle", 0.032);
-          if (type === "danger") return tone(170, 140, "sawtooth", 0.028);
+          if (type === "click") return tone(520, 55, "triangle", 0.075);
+          if (type === "modal") return tone(392, 90, "sine", 0.07);
+          if (type === "turn") return tone(660, 100, "triangle", 0.075);
+          if (type === "danger") return tone(170, 160, "sawtooth", 0.07);
         } catch {
           // ignore
         }
@@ -834,6 +863,8 @@
       // ------------------------------------------------------------
       function hideModal() {
         modalBackdrop.classList.add("hidden");
+        modalBackdrop.classList.remove("dim");
+        modalBackdrop.classList.remove("passScreen");
         modalExtra.classList.add("hidden");
         modalExtra.innerHTML = "";
         modalButtons.innerHTML = "";
@@ -851,6 +882,13 @@
         }
         modalButtons.innerHTML = "";
         modalBackdrop.classList.remove("hidden");
+        // Darker backdrop for important full-screen interruptions (e.g., pass-and-play / refill)
+        const _t = `${title || ""}\n${text || ""}`;
+        const shouldDim = /ডিভাইস পাস করুন|কার্ড রিফিল|রিফিল/i.test(_t);
+        modalBackdrop.classList.toggle("dim", shouldDim);
+        // Special treatment only for pass-and-play "Pass device" message
+        const isPassScreen = /ডিভাইস পাস করুন/i.test(_t);
+        modalBackdrop.classList.toggle("passScreen", isPassScreen);
         // SFX: modal open
         const hasDanger = (buttons || []).some((b) => b && b.kind === "danger");
         sfx(hasDanger ? "danger" : "modal");
@@ -1025,17 +1063,15 @@
         return names;
       }
 
-      // Local privacy helper: "Pass device" confirmation
+      // Local helper: "Pass device" confirmation (never blocks gameplay state)
       async function ensureLocalViewer(playerId) {
         if (mode !== "local") return;
-        if (myPlayerId === playerId) return; // viewer already
         const p = getPlayer(playerId);
         await showModal({
           title: "ডিভাইস পাস করুন",
-          text: `এখন ${p.name}-এর ইনপুট দরকার। ডিভাইসটি ${p.name}-কে দিন এবং “আমি প্রস্তুত” চাপুন।`,
+          text: `এখন ${p?.name || "পরের প্লেয়ার"}-এর ইনপুট দরকার। ডিভাইসটি তাকে দিন এবং “আমি প্রস্তুত” চাপুন।`,
           buttons: [{ label: "আমি প্রস্তুত", value: true, kind: "primary" }],
         });
-        myPlayerId = playerId;
       }
 
       // ------------------------------------------------------------
@@ -1112,6 +1148,13 @@
         if (mode && mode.startsWith("online")) netPill.textContent = "🌐 অনলাইন";
 
         if (!G) return;
+
+        // game over UI
+        const isGameOver = !!G.gameOver;
+        if (gameOverPanel) gameOverPanel.classList.toggle("hidden", !isGameOver);
+        if (winnerNameEl) winnerNameEl.textContent = G.gameOver?.winnerName || "-";
+        if (btnNewMatch) btnNewMatch.classList.toggle("hidden", mode === "online_join");
+        $("action-area")?.classList.toggle("hidden", isGameOver);
 
         // header stats
         const current = getPlayer(G.currentPlayerId);
@@ -1427,6 +1470,7 @@
 
         G = {
           version: 1,
+          gameOver: null, // { winnerId, winnerName }
           settings: {
             ai: aiParams || { bluff: 45, challenge: 35, aggression: 45 },
             rolesPool: pool,
@@ -1452,13 +1496,14 @@
       function checkWinner() {
         const alive = alivePlayers();
         if (alive.length === 1) {
-          log(`🏆 বিজয়ী: ${alive[0].name} (শেষ পর্যন্ত টিকে আছে!)`);
-          G.awaitingInput = {
-            playerId: myPlayerId,
-            hint: "গেম শেষ। চাইলে রিসেট করে আবার খেলুন।",
-            options: [{ label: "রিসেট", value: { t: "reset" }, kind: "danger" }],
-          };
+          const w = alive[0];
+          // Freeze game and show winner panel
+          G.gameOver = { winnerId: w.id, winnerName: w.name };
+          G.pending = null;
+          G.awaitingInput = null;
+          log(`🏆 বিজয়ী: ${w.name} (শেষ পর্যন্ত টিকে আছে!)`);
           broadcastState();
+          render();
           return true;
         }
         return false;
@@ -1466,12 +1511,21 @@
 
       function setAwaiting(playerId, hint, options) {
         G.awaitingInput = { playerId, hint, options };
+
+        // লোকাল (পাস-এন্ড-প্লে) মোডে:
+        // আগে মাই-ভিউয়ার আপডেট করে দিই—যাতে মোডাল/অডিও/ব্রাউজার ইস্যু হলেও
+        // অ্যাকশন বাটনগুলো দেখা যায় এবং গেম আটকে না থাকে।
+        const needPassNotice = mode === "local" && myPlayerId !== playerId;
+        if (needPassNotice) {
+          myPlayerId = playerId;
+        }
+
         broadcastState();
         render();
 
-        // লোকাল (পাস-এন্ড-প্লে) মোডে: যাঁর ইনপুট দরকার, ডিভাইসটা তার কাছে পাস করাতে সাহায্য করি।
-        if (mode === "local" && myPlayerId !== playerId) {
+        if (needPassNotice) {
           ensureLocalViewer(playerId).then(() => {
+            // UI refresh (optional)
             broadcastState();
             render();
           });
@@ -1784,12 +1838,14 @@
       function buildChallengeQueue(actorId) {
         // in turn order, starting from next player
         const order = G.players.map((p) => p.id);
-        const startIdx = order.indexOf(actorId);
+        let startIdx = order.indexOf(actorId);
+        // Safety: if actorId is missing for any reason, fall back to current turn holder.
+        if (startIdx < 0) startIdx = order.indexOf(G.currentPlayerId);
         const q = [];
         for (let i = 1; i < order.length; i++) {
           const pid = order[(startIdx + i) % order.length];
           const pl = getPlayer(pid);
-          if (pl && pl.hand.length > 0) q.push(pid);
+          if (pid !== actorId && pl && pl.hand.length > 0) q.push(pid);
         }
         return q;
       }
@@ -1805,7 +1861,9 @@
         if (!p) return;
         const actor = getPlayer(p.actorId);
         const role = p.claimedRole;
-        const next = p.challengeQueue.shift();
+        let next = p.challengeQueue.shift();
+        // Safety: never offer "challenge" to the actor himself
+        while (next && next === p.actorId) next = p.challengeQueue.shift();
         if (!next) {
           // no challenge
           if (p.action.type === "steal") {
@@ -1831,7 +1889,6 @@
           { label: "চ্যালেঞ্জ! 🛑", value: { t: "challenge", yes: true }, kind: "danger" },
           { label: "পাস", value: { t: "challenge", yes: false }, kind: "" },
         ]);
-        if (mode === "local") ensureLocalViewer(next).then(() => {});
       }
 
       function onChallengeResponse(v) {
@@ -1910,7 +1967,6 @@
           setAwaiting(next, `${actor.name} আপনার কাছ থেকে ডাকাতি করতে যাচ্ছে। আপনি ব্লক করবেন?`, blockOptions);
         } else if (p.action.type === "assassinate") {
           const opts = [];
-          if (roleInCurrentPool("জীনের বাদশা")) opts.push({ label: "ব্লক (জীনের বাদশা দাবি) 🛡️", value: { t: "block", yes: true, role: "জীনের বাদশা" }, kind: "warn" });
           if (roleInCurrentPool("ব্রহ্মদত্ত")) opts.push({ label: "ব্লক (ব্রহ্মদত্ত দাবি) 🛡️", value: { t: "block", yes: true, role: "ব্রহ্মদত্ত" }, kind: "warn" });
           if (opts.length === 0) {
             executeAction();
@@ -2106,17 +2162,19 @@
           // draw 2
           const drawn = [G.deck.pop(), G.deck.pop()].filter(Boolean);
           const choices = actor.hand.concat(drawn);
+          // keep count depends on current life/cards (1 life => keep 1, 2 lives => keep 2)
+          const keepCount = Math.max(1, Math.min(2, actor.hand.length || 2));
           // store
           p.stage = "exchange_pick";
-          p.exchange = { actorId: actor.id, choices, drawn };
-          // UI via modal-like selection: choose 2 to keep
+          p.exchange = { actorId: actor.id, choices, drawn, keepCount };
+          // UI via modal-like selection: choose N to keep (N = current lives)
           const extra =
             `<div class="divider"></div>
-             <div class="notice">আপনি মোট ৪টি কার্ড দেখছেন। যেকোনো ২টি রাখুন, বাকি ২টি ডেকে ফিরবে।</div>
+             <div class="notice">আপনি মোট ${choices.length}টি কার্ড দেখছেন। যেকোনো ${keepCount}টি রাখুন, বাকি কার্ডগুলো ডেকে ফিরবে।</div>
              <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:10px;">
                ${choices.map((r) => `<span class="tag">${r}</span>`).join("")}
              </div>`;
-          setAwaiting(actor.id, "স্বাদ বদল: কোন ২টি কার্ড রাখবেন?", [
+          setAwaiting(actor.id, `স্বাদ বদল: কোন ${keepCount}টি কার্ড রাখবেন?`, [
             { label: "সিলেক্ট করুন…", value: { t: "exchange_open" }, kind: "primary" },
           ]);
 
@@ -2338,19 +2396,25 @@
         const ex = p.exchange;
         const actor = getPlayer(ex.actorId);
         const choices = ex.choices;
+        const keepCount = Math.max(1, Math.min(2, Number(ex.keepCount || 2)));
 
-        // local privacy
-        if (mode === "local") await ensureLocalViewer(actor.id);
+        // local privacy: only show "Pass device" if current viewer is not the actor
+        if (mode === "local" && myPlayerId !== actor.id) await ensureLocalViewer(actor.id);
 
         // build checkboxes
         const html =
           `<div class="divider"></div>
-           <div class="notice">নিচ থেকে ঠিক ২টি সিলেক্ট করুন:</div>
+           <div class="notice">নিচ থেকে ঠিক ${keepCount}টি সিলেক্ট করুন:</div>
            <div style="margin-top:10px; display:grid; grid-template-columns:1fr 1fr; gap:8px;">` +
           choices
             .map((r, i) => {
+              const img = ROLE_IMAGES[r] || "";
+              const thumb = img
+                ? `<div class="roleThumb" style="width:42px;height:42px;border-radius:12px;background-image:url('${img}');"></div>`
+                : `<div class="roleThumb" style="width:42px;height:42px;border-radius:12px;"></div>`;
               return `<label style="display:flex; gap:10px; align-items:center; border:1px solid rgba(35,52,86,.6); padding:10px; border-radius:12px; background:rgba(8,12,22,.35); cursor:pointer; font-weight:1000;">
                 <input type="checkbox" data-ex-idx="${i}" style="transform:scale(1.2)" />
+                ${thumb}
                 <span>${r}</span>
               </label>`;
             })
@@ -2359,7 +2423,7 @@
 
         modalBackdrop.classList.remove("hidden");
         modalTitle.textContent = "স্বাদ বদল (Exchange)";
-        modalText.textContent = "আপনি কোন ২টি কার্ড রাখবেন?";
+        modalText.textContent = `আপনি কোন ${keepCount}টি কার্ড রাখবেন?`;
         modalExtra.classList.remove("hidden");
         modalExtra.innerHTML = html;
         modalButtons.innerHTML = "";
@@ -2371,8 +2435,8 @@
           ok.onclick = () => {
             const boxes = [...modalExtra.querySelectorAll("input[type=checkbox]")];
             const picked = boxes.filter((b) => b.checked).map((b) => Number(b.getAttribute("data-ex-idx")));
-            if (picked.length !== 2) {
-              alert("ঠিক ২টি কার্ড সিলেক্ট করতে হবে।");
+            if (picked.length !== keepCount) {
+              alert(`ঠিক ${keepCount}টি কার্ড সিলেক্ট করতে হবে।`);
               return;
             }
             hideModal();
@@ -2402,11 +2466,13 @@
         const actor = getPlayer(ex.actorId);
         const choices = ex.choices;
 
-        const kept = keepIdxs.map((i) => choices[i]);
-        const returned = choices.filter((_, i) => !keepIdxs.includes(i));
+        const keepCount = Math.max(1, Math.min(2, Number(ex.keepCount || actor.hand.length || 2)));
+        const pickedIdxs = Array.isArray(keepIdxs) ? keepIdxs.slice(0, keepCount) : [];
+        const kept = pickedIdxs.map((i) => choices[i]).filter(Boolean).slice(0, keepCount);
+        const returned = choices.filter((_, i) => !pickedIdxs.includes(i));
 
         // reset actor hand: remove all old hand, then set kept
-        actor.hand = kept;
+        actor.hand = kept.slice(0, keepCount);
         // return others to deck
         for (const r of returned) G.deck.push(r);
         shuffle(G.deck);
@@ -2438,15 +2504,127 @@
         return Math.random() * 100 < pct(pctVal);
       }
 
+      function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
+
+      function countRevealedRole(role) {
+        let c = 0;
+        for (const pl of (G?.players || [])) {
+          for (const r of (pl.revealed || [])) if (r === role) c++;
+        }
+        return c;
+      }
+
+      function countRoleInHand(playerId, role) {
+        const pl = getPlayer(playerId);
+        if (!pl) return 0;
+        return (pl.hand || []).filter((r) => r === role).length;
+      }
+
+      // Estimate P(player has at least one copy of role) without peeking at hidden hands.
+      // Uses hypergeometric approximation using: known = (my hand + all revealed)
+      function estimateHasRole(viewerId, targetId, role) {
+        try {
+          if (!G) return 0.5;
+          const target = getPlayer(targetId);
+          const viewer = getPlayer(viewerId);
+          if (!target || !viewer || !role) return 0.5;
+
+          const totalCopies = 3; // deck is built as rolesPool * 3
+          const knownCopies = countRoleInHand(viewerId, role) + countRevealedRole(role);
+          const unknownCopies = clamp(totalCopies - knownCopies, 0, totalCopies);
+
+          const totalUnknownCards = clamp(G.deck.length + G.players.reduce((s, p) => s + (p.hand?.length || 0), 0) - (viewer.hand?.length || 0), 0, 999);
+          const k = clamp(target.hand?.length || 0, 0, totalUnknownCards);
+          if (totalUnknownCards === 0) return unknownCopies > 0 ? 1 : 0;
+          if (unknownCopies === 0 || k === 0) return 0;
+
+          // P(no success) = Π ((N-K - i)/(N - i))
+          let pNo = 1;
+          for (let i = 0; i < k; i++) {
+            const denom = (totalUnknownCards - i);
+            const numer = (totalUnknownCards - unknownCopies - i);
+            if (denom <= 0) break;
+            pNo *= clamp(numer / denom, 0, 1);
+          }
+          return clamp(1 - pNo, 0, 1);
+        } catch {
+          return 0.5;
+        }
+      }
+
+      function pickBestTargetOption(opts) {
+        let best = null;
+        let bestScore = -1e9;
+        for (const o of opts) {
+          if (!o?.value || o.value.t !== "target") continue;
+          const mLives = (o.label || "").match(/লাইফ\s(\d)/);
+          const lives = mLives ? Number(mLives[1]) : 2;
+          const mCoins = (o.label || "").match(/🪙\s(\d+)/);
+          const coins = mCoins ? Number(mCoins[1]) : 0;
+          // prioritize: lowest lives, then highest coins
+          const score = (lives === 1 ? 1000 : 0) + coins * 5 + (2 - lives) * 50 + Math.random() * 2;
+          if (score > bestScore) { bestScore = score; best = o; }
+        }
+        return best || opts[0] || null;
+      }
+
+      function aiPickActionOption(playerId, opts) {
+        const me = getPlayer(playerId);
+        if (!me) return opts.find((o) => o.value?.a === "income") || opts[0];
+
+        const scoreOpt = (o) => {
+          const a = o?.value?.a;
+          const role = o?.value?.role || null;
+          const isTruth = role ? me.hand.includes(role) : false;
+          const bluffPenalty = role && !isTruth ? (100 - pct(G.settings.ai.bluff)) / 4 : 0;
+          const lives = me.hand.length || 2;
+          const richTargetExists = G.players.some((p) => p.id !== me.id && p.hand.length > 0 && (p.coins || 0) >= 4);
+          const killTargetExists = G.players.some((p) => p.id !== me.id && p.hand.length === 1);
+
+          let score = Math.random() * 3;
+          if (a === "income") score += 5;
+          if (a === "foreign_aid") score += 8;
+          if (a === "tax") score += 16;
+          if (a === "mamdo") score += 18;
+          if (a === "exchange") score += 11 + (lives === 1 ? 8 : 0);
+          if (a === "arun") score += 10;
+          if (a === "set_tax") score += 9;
+          if (a === "steal_all") score += 12 + (G.players.length >= 4 ? 4 : 0);
+          if (a === "steal") score += (richTargetExists ? 16 : 10);
+          if (a === "assassinate") score += (killTargetExists ? 22 : 14);
+          if (a === "betal") score += (killTargetExists ? 20 : 12);
+          if (a === "coup") score += (killTargetExists ? 40 : 22);
+
+          // Spend/risks
+          if (lives === 1 && (a === "foreign_aid")) score -= 3;
+          if (a === "assassinate" || a === "betal") score -= 2;
+
+          // Prefer truth claims; allow bluff sometimes
+          score -= bluffPenalty;
+          if (role && isTruth) score += 8;
+
+          // If we are rich, be more aggressive
+          score += clamp((me.coins || 0) - 4, 0, 10) * (a === "coup" ? 2.5 : 0.8);
+
+          return score;
+        };
+
+        let best = null;
+        let bestScore = -1e9;
+        for (const o of opts) {
+          if (o?.value?.t !== "action") continue;
+          const s = scoreOpt(o);
+          if (s > bestScore) { bestScore = s; best = o; }
+        }
+        return best || opts.find((o) => o.value?.a === "income") || opts[0];
+      }
+
       function aiRespond(playerId) {
         // For now AI only responds when it is awaitedInput owner.
         if (!G || !G.awaitingInput || G.awaitingInput.playerId !== playerId) return;
         const p = getPlayer(playerId);
         const ai = G.settings.ai;
         const opts = G.awaitingInput.options;
-
-        // Decide based on context in hint (MVP)
-        const hint = (G.awaitingInput.hint || "").toLowerCase();
 
         // Reveal: choose random card
         if (opts.length && opts[0].value?.t === "reveal") {
@@ -2457,8 +2635,17 @@
 
         // Challenge decision
         if (opts.some((o) => o.value?.t === "challenge")) {
-          const doCh = aiShould(ai.challenge);
-          const pick = opts.find((o) => o.value?.t === "challenge" && o.value.yes === doCh)?.value
+          const pending = G.pending;
+          const actorId = pending?.actorId || null;
+          const role = pending?.claimedRole || null;
+          const lives = p?.hand?.length || 2;
+          const probHas = (actorId && role) ? estimateHasRole(playerId, actorId, role) : 0.5;
+          // Higher ai.challenge => challenge more; 1-life AI => challenge less (safer)
+          let threshold = 0.25 + (pct(ai.challenge) / 100) * 0.55; // 0.25..0.80
+          if (lives === 1) threshold -= 0.15;
+          const doCh = (probHas < threshold) && aiShould(90);
+          const pick =
+            opts.find((o) => o.value?.t === "challenge" && o.value.yes === doCh)?.value
             || opts.find((o) => o.value?.t === "challenge" && o.value.yes === false)?.value;
           receiveInput(pick);
           return;
@@ -2466,18 +2653,36 @@
 
         // Block decision
         if (opts.some((o) => o.value?.t === "block")) {
-          // Slight preference to block harmful actions
-          const doBlock = aiShould(Math.min(85, ai.aggression + 20));
-          const pick = opts.find((o) => o.value?.t === "block" && o.value.yes === doBlock)?.value
-            || opts.find((o) => o.value?.t === "block" && o.value.yes === false)?.value;
+          const pending = G.pending;
+          const isTargeted = pending?.targetId && pending.targetId === playerId;
+          const isDanger = pending?.action?.type === "assassinate" || pending?.action?.type === "steal";
+          const wantBlock = (isTargeted && isDanger) || (pending?.action?.type === "foreign_aid");
+
+          // Prefer truthful block if possible, else bluff depending on ai.bluff
+          const roleOptions = opts.filter((o) => o.value?.t === "block" && o.value.yes === true);
+          const truth = roleOptions.find((o) => (o.value?.role && p?.hand?.includes(o.value.role)));
+          const doBlock = wantBlock ? (truth ? true : aiShould(ai.bluff)) : aiShould(Math.min(35, ai.aggression));
+          const chosenRole = truth?.value || (roleOptions[0]?.value);
+          const pick =
+            doBlock
+              ? (chosenRole || opts.find((o) => o.value?.t === "block" && o.value.yes === true)?.value)
+              : (opts.find((o) => o.value?.t === "block" && o.value.yes === false)?.value);
           receiveInput(pick);
           return;
         }
 
         // Block challenge decision
         if (opts.some((o) => o.value?.t === "block_decide")) {
-          const doCh = aiShould(ai.challenge);
-          const pick = opts.find((o) => o.value?.t === "block_decide" && o.value.challenge === doCh)?.value
+          const pending = G.pending;
+          const blockerId = pending?.block?.blockerId || null;
+          const role = pending?.block?.role || null;
+          const lives = p?.hand?.length || 2;
+          const probHas = (blockerId && role) ? estimateHasRole(playerId, blockerId, role) : 0.5;
+          let threshold = 0.22 + (pct(ai.challenge) / 100) * 0.55;
+          if (lives === 1) threshold -= 0.12;
+          const doCh = (probHas < threshold) && aiShould(85);
+          const pick =
+            opts.find((o) => o.value?.t === "block_decide" && o.value.challenge === doCh)?.value
             || opts.find((o) => o.value?.t === "block_decide" && o.value.challenge === false)?.value;
           receiveInput(pick);
           return;
@@ -2485,26 +2690,19 @@
 
         // Target pick: prefer low-life
         if (opts.length && opts[0].value?.t === "target") {
-          let best = opts[0];
-          for (const o of opts) {
-            const m = o.label.match(/লাইফ\s(\d)/);
-            const lives = m ? Number(m[1]) : 2;
-            if (lives === 1) {
-              best = o;
-              break;
-            }
-          }
+          const best = pickBestTargetOption(opts) || opts[0];
           receiveInput(best.value);
           return;
         }
 
         // Exchange open: just open and choose random keep
         if (opts.length && opts[0].value?.t === "exchange_open") {
-          // pick first two (no UI for AI)
+          // pick first N (no UI for AI)
           clearAwaiting();
           const pctx = G.pending;
           if (!pctx || !pctx.exchange) return endTurn();
-          finalizeExchange([0, 1]);
+          const k = clamp(Number(pctx.exchange.keepCount || 2), 1, 2);
+          finalizeExchange(k === 1 ? [0] : [0, 1]);
           return;
         }
 
@@ -2554,43 +2752,8 @@
 
         // Action selection: heuristic with bluff
         if (opts.some((o) => o.value?.t === "action")) {
-          const me = getPlayer(playerId);
-          // forced coup handled elsewhere, but here we can choose
-          if (me.coins >= 7 && aiShould(ai.aggression + 25)) {
-            const coup = opts.find((o) => o.value?.a === "coup");
-            if (coup) return receiveInput(coup.value);
-          }
-          if (me.coins >= 5 && aiShould(ai.aggression + 5)) {
-            const betal = opts.find((o) => o.value?.a === "betal");
-            if (betal) return receiveInput(betal.value);
-          }
-          if (me.coins >= 3 && aiShould(ai.aggression + 10)) {
-            const ass = opts.find((o) => o.value?.a === "assassinate");
-            if (ass) return receiveInput(ass.value);
-          }
-          // Prefer tax if has duke or bluff
-          const hasDuke = me.hand.includes("বীর বিক্রম");
-          if (hasDuke || aiShould(ai.bluff)) {
-            const tax = opts.find((o) => o.value?.a === "tax");
-            if (tax && aiShould(65)) return receiveInput(tax.value);
-          }
-          const mamdo = opts.find((o) => o.value?.a === "mamdo");
-          if (mamdo && aiShould(55)) return receiveInput(mamdo.value);
-          const stealAll = opts.find((o) => o.value?.a === "steal_all");
-          if (stealAll && aiShould(40)) return receiveInput(stealAll.value);
-          const setTax = opts.find((o) => o.value?.a === "set_tax");
-          if (setTax && aiShould(30)) return receiveInput(setTax.value);
-          const arun = opts.find((o) => o.value?.a === "arun");
-          if (arun && aiShould(35)) return receiveInput(arun.value);
-          // Prefer steal sometimes
-          const steal = opts.find((o) => o.value?.a === "steal");
-          if (steal && aiShould(55)) return receiveInput(steal.value);
-
-          // fallback: foreign aid or income
-          const fa = opts.find((o) => o.value?.a === "foreign_aid");
-          if (fa && aiShould(65)) return receiveInput(fa.value);
-          const inc = opts.find((o) => o.value?.a === "income");
-          return receiveInput(inc.value);
+          const best = aiPickActionOption(playerId, opts);
+          return receiveInput(best.value);
         }
       }
 
@@ -2647,10 +2810,10 @@
             "১০+ কয়েন হলে বাধ্যতামূলকভাবে হত্যা।\n\n" +
             "ক্যারেক্টার:\n" +
             "• বীর বিক্রম: +৩ (চ্যালেঞ্জ হতে পারে), রপ্তানি ব্লক\n" +
-            "• ব্রহ্মদত্ত: ৩🪙 দিয়ে ঘাড় মটকানো (চ্যালেঞ্জ হতে পারে, জীনের বাদশা ব্লক)\n" +
+            "• ব্রহ্মদত্ত: ৩🪙 দিয়ে ঘাড় মটকানো (চ্যালেঞ্জ হতে পারে)\n" +
             "• কালো ডাকাত: ২🪙 ডাকাতি (চ্যালেঞ্জ হতে পারে, কালো ডাকাত/পেটুক চন্দ্র ব্লক)\n" +
             "• পেটুক চন্দ্র: ২ কার্ড তুলে ২টি রেখে বাকিগুলো ফেরত (চ্যালেঞ্জ হতে পারে)\n" +
-            "• জীনের বাদশা: অ্যাকশন নেই, ঘাড় মটকানো ব্লক\n\n" +
+            "\n" +
             "চ্যালেঞ্জ: দাবি করা কার্ড দেখাতে পারলে চ্যালেঞ্জার ১ লাইফ হারায়, দেখানো কার্ড ডেকে শাফল করে নতুন কার্ড নেয়। না পারলে দাবিদার ১ লাইফ হারায় ও অ্যাকশন/ব্লক ব্যর্থ।",
           buttons: [{ label: "ঠিক আছে", value: true, kind: "primary" }],
         });
@@ -2685,7 +2848,7 @@
       btnHome.onclick = () => resetAll();
       btnRules.onclick = () => showRules();
       btnBack.onclick = () => resetAll();
-      btnReset.onclick = () => resetAll();
+      btnNewMatch?.addEventListener("click", () => resetAll());
       btnSound?.addEventListener("click", () => {
         audioEnabled = !audioEnabled;
         saveSoundPref();
@@ -2787,8 +2950,27 @@
         });
       }
 
+      function updateConnectivityUI() {
+        const online = navigator.onLine;
+        const hostBtn = document.querySelector('[data-mode="online_host"]');
+        const joinBtn = document.querySelector('[data-mode="online_join"]');
+        const note = $("offline-note");
+        if (hostBtn) {
+          hostBtn.disabled = !online;
+          hostBtn.title = online ? "" : "অফলাইন অবস্থায় অনলাইন ম্যাচ হোস্ট করা যাবে না";
+        }
+        if (joinBtn) {
+          joinBtn.disabled = !online;
+          joinBtn.title = online ? "" : "অফলাইন অবস্থায় অনলাইন ম্যাচে যোগ দেওয়া যাবে না";
+        }
+        if (note) note.classList.toggle("hidden", online);
+      }
+      window.addEventListener("online", updateConnectivityUI);
+      window.addEventListener("offline", updateConnectivityUI);
+
       // initial UI
       render();
+      updateConnectivityUI();
     </script>
   </body>
 </html>
