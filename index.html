@@ -343,6 +343,59 @@
       }
       .btn.big{padding:14px 16px; border-radius:16px; font-size:15px; font-weight:1100}
 
+      /* Online flow: create/join + waiting lobby (match screenshots) */
+      .onlineFlowWrap{width:100%; max-width:560px; margin:0 auto; padding-top:16vh;}
+      .onlineCard{
+        padding:18px;
+        border-radius:18px;
+        background:rgba(10,16,30,.55);
+        border:1px solid rgba(120,140,190,.18);
+        box-shadow: 0 18px 70px rgba(0,0,0,.45);
+      }
+      .onlineTopRow{display:flex; align-items:center; justify-content:space-between; gap:10px; color:var(--muted); font-weight:900}
+      .onlineTopRow .linkBtn{background:transparent; border:none; color:inherit; font-weight:1000; cursor:pointer; padding:6px 6px;}
+      .onlineTitle{ text-align:center; font-weight:1100; font-size:22px; margin:10px 0 14px 0; letter-spacing:.3px; color:var(--warn); }
+      .onlineFieldLabel{color:var(--muted); font-weight:1000; font-size:13px; margin:4px 0 8px}
+      .onlineInput{
+        width:100%;
+        padding:14px 14px;
+        border-radius:14px;
+        border:1px solid rgba(120,140,190,.18);
+        background:rgba(255,255,255,.06);
+        color:var(--text);
+        outline:none;
+        font-weight:1000;
+      }
+      .onlineInput::placeholder{color:rgba(235,243,255,.45); font-weight:900}
+      .btnRow{display:flex; gap:12px; margin-top:12px}
+      .btnRow .btn{flex:1}
+      .lobbyTitleSmall{ text-align:center; font-weight:1100; font-size:18px; margin:8px 0 10px; color:var(--warn); }
+      .roomCodeBig{ text-align:center; font-weight:1200; font-size:38px; letter-spacing:3px; margin:6px 0 6px}
+      .lobbySub{ text-align:center; color:rgba(235,243,255,.65); font-weight:900; margin-bottom:10px }
+      .lobbyList{ margin-top:10px }
+      .lobbyItem{
+        display:flex; align-items:center; justify-content:space-between; gap:10px;
+        padding:12px 12px;
+        border-radius:14px;
+        background:rgba(255,255,255,.06);
+        border:1px solid rgba(120,140,190,.14);
+      }
+      .statusDot{
+        display:inline-block;
+        width:10px; height:10px;
+        border-radius:999px;
+        margin-right:6px;
+        box-shadow: 0 0 0 3px rgba(0,0,0,.15);
+        vertical-align:middle;
+      }
+      .statusDot.pending{background:#f59e0b;} /* amber */
+      .statusDot.open{background:#22c55e;} /* green */
+      .statusDot.error{background:#ef4444;} /* red */
+      .lobbyLeft{display:flex; align-items:center; gap:10px; font-weight:1100}
+      .lobbyLeft .pin{opacity:.85}
+      .lobbyRight{color:rgba(235,243,255,.55); font-weight:900}
+      .lobbyHint{ text-align:center; color:rgba(235,243,255,.55); font-weight:900; margin:12px 0 0 }
+
       /* Lobby role picker */
       .rolePick{
         display:flex;
@@ -374,7 +427,7 @@
   </head>
   <body>
     <div class="container">
-      <div class="topbar">
+      <div id="topbar" class="topbar">
         <div class="brand">
           <b>SHOROJONTRO</b>
           <span>ষড়যন্ত্র</span>
@@ -421,6 +474,66 @@
             <div class="grid" style="grid-template-columns:1fr; gap:12px;">
               <button id="btn-online-create" class="btn big primary">নতুন রুম তৈরি করুন</button>
               <button id="btn-online-join-menu" class="btn big">রুমে যোগ দিন</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ONLINE FLOW (create/join + waiting lobby) -->
+      <section id="screen-online-flow" class="hidden">
+        <div class="onlineFlowWrap">
+          <div class="onlineCard">
+            <div class="onlineTopRow">
+              <button id="btn-online-flow-back" class="linkBtn">← বাড়ি</button>
+              <span></span>
+            </div>
+
+            <!-- create room -->
+            <div id="online-create-view" class="hidden">
+              <div class="onlineTitle">অনলাইন মাল্টিপ্লেয়ার</div>
+              <div class="onlineFieldLabel">আপনার নাম</div>
+              <input id="inp-online-name-host" class="onlineInput" placeholder="আপনার নাম লিখুন" />
+              <div class="btnRow">
+                <button id="btn-online-cancel-host" class="btn">বাতিল</button>
+                <button id="btn-online-create-room" class="btn primary">তৈরি করুন</button>
+              </div>
+            </div>
+
+            <!-- join room -->
+            <div id="online-join-view" class="hidden">
+              <div class="onlineTitle">অনলাইন মাল্টিপ্লেয়ার</div>
+              <div class="onlineFieldLabel">আপনার নাম</div>
+              <input id="inp-online-name-join" class="onlineInput" placeholder="আপনার নাম লিখুন" />
+              <div class="onlineFieldLabel" style="margin-top:12px;">রুম কোড</div>
+              <input id="inp-online-room-join" class="onlineInput" placeholder="যেমন: CY7FQ" />
+              <div class="btnRow">
+                <button id="btn-online-cancel-join" class="btn">বাতিল</button>
+                <button id="btn-online-join-room" class="btn primary">জয়েন</button>
+              </div>
+            </div>
+
+            <!-- waiting lobby (host + join) -->
+            <div id="online-wait-view" class="hidden">
+              <div class="lobbyTitleSmall">লবি</div>
+              <div class="roomCodeBig" id="wait-room-code">-----</div>
+              <div class="lobbySub" style="margin-top:2px;">
+                <span id="wait-room-dot" class="statusDot pending"></span>
+                <span id="wait-room-status">রুম স্ট্যাটাস: প্রস্তুত নয়</span>
+              </div>
+              <div class="lobbySub"><span id="wait-count">0</span> জন অপেক্ষা করছেন...</div>
+
+              <div class="lobbyList" id="wait-list"></div>
+
+              <div class="lobbyHint" id="wait-hint">আরো খেলোয়াড়ের জন্য অপেক্ষা করছি...</div>
+
+              <div id="wait-host-actions" class="hidden" style="margin-top:14px;">
+                <button id="btn-wait-start" class="btn primary" disabled>গেম শুরু করুন</button>
+                <div class="lobbyHint" style="margin-top:10px;">গেম শুরু করলে পরের ধাপে গেম সেটআপ আসবে।</div>
+              </div>
+
+              <div style="text-align:center; margin-top:14px;">
+                <button id="btn-wait-leave" class="linkBtn">← বেরিয়ে যান</button>
+              </div>
             </div>
           </div>
         </div>
@@ -688,6 +801,8 @@
       const screenLobby = $("screen-lobby");
       const screenGame = $("screen-game");
       const screenOnline = $("screen-online");
+      const screenOnlineFlow = $("screen-online-flow");
+      const topbar = $("topbar");
 
       const netPill = $("net-pill");
       const btnHome = $("btn-home");
@@ -698,6 +813,28 @@
       const btnOnlineHome = $("btn-online-home");
       const btnOnlineCreate = $("btn-online-create");
       const btnOnlineJoinMenu = $("btn-online-join-menu");
+
+      // Online flow refs
+      const btnOnlineFlowBack = $("btn-online-flow-back");
+      const onlineCreateView = $("online-create-view");
+      const onlineJoinView = $("online-join-view");
+      const onlineWaitView = $("online-wait-view");
+      const inpOnlineNameHost = $("inp-online-name-host");
+      const inpOnlineNameJoin = $("inp-online-name-join");
+      const inpOnlineRoomJoin = $("inp-online-room-join");
+      const btnOnlineCancelHost = $("btn-online-cancel-host");
+      const btnOnlineCreateRoom = $("btn-online-create-room");
+      const btnOnlineCancelJoin = $("btn-online-cancel-join");
+      const btnOnlineJoinRoom = $("btn-online-join-room");
+      const waitRoomCodeEl = $("wait-room-code");
+      const waitRoomDot = $("wait-room-dot");
+      const waitRoomStatusEl = $("wait-room-status");
+      const waitCountEl = $("wait-count");
+      const waitListEl = $("wait-list");
+      const waitHintEl = $("wait-hint");
+      const waitHostActions = $("wait-host-actions");
+      const btnWaitStart = $("btn-wait-start");
+      const btnWaitLeave = $("btn-wait-leave");
       const inpName = $("inp-name");
       const selCount = $("sel-count");
 
@@ -756,6 +893,11 @@
       // online lobby (pre-game) state: host tracks who joined (max 5 joiners -> total 6)
       let lobbyJoined = new Map(); // tempConnId -> name
       let hostSetupOpened = false; // host: setup UI unlock (after at least 1 join)
+      let onlineHostStage = "create"; // create | wait | setup
+      let onlineJoinStage = "join"; // join | wait
+      let onlineRoomCode = null;
+      let onlineSelfName = "";
+      let clientLobbyInfo = null; // join side: {roomCode, hostName, joinNames[]}
 
       // লবি রোল সিলেকশন (১০ থেকে ৫)
       let lobbySelectedRoles = new Set(DEFAULT_ROLE_POOL);
@@ -1194,17 +1336,41 @@
           }
         } catch {}
 
+        const inGame = !!G;
+        const isOnlineMode = mode === "online_host" || mode === "online_join";
+        const inOnlineFlow =
+          !inGame &&
+          ((mode === "online_host" && onlineHostStage !== "setup") ||
+            (mode === "online_join" && onlineJoinStage !== "setup"));
+
+        // show/hide global topbar (match screenshots)
+        if (topbar) topbar.classList.toggle("hidden", mode === "online_menu" || inOnlineFlow);
+
         // screen toggles
         screenHome.classList.toggle("hidden", mode !== null);
         screenOnline?.classList.toggle("hidden", mode !== "online_menu");
-        screenLobby.classList.toggle("hidden", mode === null || mode === "online_menu" || G !== null);
-        screenGame.classList.toggle("hidden", !G);
+        screenOnlineFlow?.classList.toggle("hidden", !inOnlineFlow);
+        screenLobby.classList.toggle(
+          "hidden",
+          mode === null || mode === "online_menu" || inGame || inOnlineFlow || mode === "online_join"
+        );
+        screenGame.classList.toggle("hidden", !inGame);
+
+        // Online flow view switch
+        if (inOnlineFlow) {
+          if (mode === "online_host") {
+            showOnlineFlow(onlineHostStage === "create" ? "create" : "wait", { roomCode: onlineRoomCode, isHostView: true });
+          } else {
+            showOnlineFlow(onlineJoinStage === "join" ? "join" : "wait", { roomCode: onlineRoomCode, isHostView: false });
+          }
+          updateWaitLobbyUI();
+        }
 
         // lobby conditional panels
         aiSettings.classList.toggle("hidden", mode !== "ai");
         onlineHostPanel.classList.toggle("hidden", mode !== "online_host");
         onlineJoinPanel.classList.toggle("hidden", mode !== "online_join");
-        const isOnline = mode === "online_host" || mode === "online_join";
+        const isOnline = isOnlineMode;
         const canShowSetup = !isOnline || (mode === "online_host" && hostSetupOpened);
         // online mode: total players determined by who joined (host + joiners)
         $("row-count").classList.toggle("hidden", isOnline);
@@ -1376,10 +1542,103 @@
         }
       }
 
+      function showOnlineFlow(view, { roomCode, isHostView } = {}) {
+        if (screenOnline) screenOnline.classList.add("hidden");
+        if (screenHome) screenHome.classList.add("hidden");
+        if (screenLobby) screenLobby.classList.add("hidden");
+        if (screenGame) screenGame.classList.add("hidden");
+        if (screenOnlineFlow) screenOnlineFlow.classList.remove("hidden");
+
+        if (onlineCreateView) onlineCreateView.classList.toggle("hidden", view !== "create");
+        if (onlineJoinView) onlineJoinView.classList.toggle("hidden", view !== "join");
+        if (onlineWaitView) onlineWaitView.classList.toggle("hidden", view !== "wait");
+
+        if (onlineWaitView) {
+          if (waitHostActions) waitHostActions.classList.toggle("hidden", !isHostView);
+          if (waitRoomCodeEl) waitRoomCodeEl.textContent = (roomCode || onlineRoomCode || "-----");
+        }
+      }
+
+      function updateWaitLobbyUI() {
+        if (!onlineWaitView || onlineWaitView.classList.contains("hidden")) return;
+        // Host view uses local lobbyJoined; join view uses clientLobbyInfo (sent from host)
+        const isJoinSide = mode === "online_join";
+        const info = isJoinSide ? (clientLobbyInfo || null) : null;
+        const joined = isJoinSide ? Math.max(0, (info?.joinNames?.length || 0)) : lobbyJoinCount();
+        const total = isJoinSide ? clamp((info?.joinNames?.length || 0) + 1, 1, 6) : clamp(joined + 1, 1, 6);
+        if (waitCountEl) waitCountEl.textContent = String(total);
+
+        const names = [];
+        if (isJoinSide && info) {
+          const all = [info.hostName || "Host", ...(info.joinNames || [])];
+          let marked = false;
+          for (const nm of all) {
+            const clean = normalizeName(nm, "Player");
+            const me = (!marked) && onlineSelfName && clean === normalizeName(onlineSelfName, "Player");
+            if (me) marked = true;
+            names.push({ name: clean, me });
+          }
+        } else if (isJoinSide && !info) {
+          // fallback: show only self until host sends lobby info
+          names.push({ name: normalizeName(onlineSelfName || "Player", "Player"), me: true });
+        } else {
+          const hostName = normalizeName(onlineSelfName || inpName.value, "Player");
+          names.push({ name: hostName, me: true });
+          for (const nm of lobbyJoined.values()) {
+            names.push({ name: normalizeName(nm, "Player"), me: false });
+          }
+        }
+
+        if (waitListEl) {
+          waitListEl.innerHTML = names
+            .slice(0, 6)
+            .map((p) => {
+              return `
+                <div class="lobbyItem">
+                  <div class="lobbyLeft"><span class="pin">⚓</span> <span>${escapeHTML(p.name)}</span></div>
+                  <div class="lobbyRight">${p.me ? "(আপনি)" : ""}</div>
+                </div>
+              `;
+            })
+            .join("");
+        }
+
+        if (waitHintEl) {
+          waitHintEl.textContent = "আরো খেলোয়াড়ের জন্য অপেক্ষা করছি...";
+        }
+
+        if (btnWaitStart) {
+          btnWaitStart.disabled = joined < 1;
+        }
+      }
+
+      function broadcastLobbyInfo() {
+        if (!isHost) return;
+        if (!mode || mode !== "online_host") return;
+        if (!onlineRoomCode) return;
+        const hostName = normalizeName(onlineSelfName || inpName.value, "Player");
+        const joinNames = [...lobbyJoined.values()].map((n) => normalizeName(n, "Player")).slice(0, 5);
+        const msg = { type: "lobby", roomCode: onlineRoomCode, hostName, joinNames };
+        for (const [, conn] of connections.entries()) {
+          if (!conn || !conn._accepted) continue;
+          try { conn.send(msg); } catch {}
+        }
+      }
+
+      function setRoomStatus(kind, text) {
+        if (waitRoomDot) {
+          waitRoomDot.classList.remove("pending", "open", "error");
+          waitRoomDot.classList.add(kind || "pending");
+        }
+        if (waitRoomStatusEl) waitRoomStatusEl.textContent = text || "রুম স্ট্যাটাস: প্রস্তুত নয়";
+      }
+
       async function setupOnlineHost(roomCode) {
         isHost = true;
         $("net-pill").classList.remove("hidden");
         roomCodeEl.textContent = roomCode;
+        onlineRoomCode = roomCode;
+        setRoomStatus("pending", "রুম স্ট্যাটাস: খুলছে…");
 
         // Load PeerJS dynamically (so local/ai doesn't depend on it)
         await loadPeerJs();
@@ -1387,6 +1646,8 @@
 
         peer.on("open", () => {
           logToConsole("Peer open (host): " + roomCode);
+          setRoomStatus("open", "রুম স্ট্যাটাস: খোলা আছে ✅");
+          broadcastLobbyInfo();
         });
         peer.on("connection", (conn) => {
           const tempId = uid();
@@ -1396,16 +1657,24 @@
             connections.delete(tempId);
             if (lobbyJoined && lobbyJoined.has(tempId)) lobbyJoined.delete(tempId);
             updateHostLobbyUI();
+            updateWaitLobbyUI();
+            broadcastLobbyInfo();
             logToConsole("client disconnected");
           });
         });
-        peer.on("error", (e) => logToConsole("peer error: " + e));
+        peer.on("error", (e) => {
+          logToConsole("peer error: " + e);
+          setRoomStatus("error", "রুম স্ট্যাটাস: খুলতে সমস্যা হয়েছে ❌");
+        });
         updateHostLobbyUI();
+        updateWaitLobbyUI();
       }
 
       async function setupOnlineJoin(roomCode) {
         isHost = false;
         $("net-pill").classList.remove("hidden");
+        onlineRoomCode = roomCode;
+        setRoomStatus("pending", "রুম স্ট্যাটাস: সংযোগ হচ্ছে…");
         await loadPeerJs();
         peer = new Peer(undefined, peerClientConfig());
         await new Promise((resolve) => peer.on("open", resolve));
@@ -1416,7 +1685,10 @@
         });
         conn.on("data", (data) => onClientData(conn, data));
         conn.on("error", (e) => logToConsole("conn error: " + e));
-        peer.on("error", (e) => logToConsole("peer error: " + e));
+        peer.on("error", (e) => {
+          logToConsole("peer error: " + e);
+          setRoomStatus("error", "রুম স্ট্যাটাস: সংযোগ সমস্যা ❌");
+        });
         connections.set("host", conn);
       }
 
@@ -1465,6 +1737,8 @@
             conn._accepted = true;
             lobbyJoined.set(tempConnId, desired);
             updateHostLobbyUI();
+            updateWaitLobbyUI();
+            broadcastLobbyInfo();
           }
 
           try { conn.send({ type: "hello_ack" }); } catch {}
@@ -1497,6 +1771,24 @@
         if (!data || typeof data !== "object") return;
         if (data.type === "hello_ack") {
           setJoinStatus("জয়েন হয়েছে। হোস্ট গেম সেটআপ/স্টার্ট করলে আপনি স্বয়ংক্রিয়ভাবে ঢুকে যাবেন।", true);
+          setRoomStatus("open", "রুম স্ট্যাটাস: সংযুক্ত ✅");
+          return;
+        }
+        if (data.type === "lobby") {
+          clientLobbyInfo = {
+            roomCode: data.roomCode || onlineRoomCode,
+            hostName: data.hostName || "Host",
+            joinNames: Array.isArray(data.joinNames) ? data.joinNames : [],
+          };
+          // Move to waiting lobby UI
+          showOnlineFlow("wait", { roomCode: clientLobbyInfo.roomCode, isHostView: false });
+          setRoomStatus("open", "রুম স্ট্যাটাস: খোলা আছে ✅");
+          updateWaitLobbyUI();
+          return;
+        }
+        if (data.type === "start_setup") {
+          // host is moving to setup screen; join should wait for state/assign
+          setJoinStatus("হোস্ট গেম শুরু করেছে… লোড হচ্ছে…", true);
           return;
         }
         if (data.type === "room_full") {
@@ -2938,19 +3230,26 @@
         pendingPromptResolvers = new Map();
         lobbyJoined = new Map();
         hostSetupOpened = false;
+        onlineHostStage = "create";
+        onlineJoinStage = "join";
+        onlineRoomCode = null;
+        onlineSelfName = "";
+        clientLobbyInfo = null;
         peer = null;
 
         // prefill
         inpName.value = inpName.value || "Player";
         ensureLobbyNameCache(Number(selCount.value || 3));
         renderLobbyNames();
-        // lobby UI
+        // online flow init (do NOT create/connect automatically)
         if (mode === "online_host") {
-          const code = safeUpperCode(6);
-          roomCodeEl.textContent = code;
-          setupOnlineHost(code);
+          onlineHostStage = "create";
+          if (inpOnlineNameHost) inpOnlineNameHost.value = inpName.value || "Player";
         }
         if (mode === "online_join") {
+          onlineJoinStage = "join";
+          if (inpOnlineNameJoin) inpOnlineNameJoin.value = inpName.value || "Player";
+          if (inpOnlineRoomJoin) inpOnlineRoomJoin.value = "";
           setJoinStatus("", false);
         }
         render();
@@ -2964,6 +3263,11 @@
         pendingPromptResolvers = new Map();
         lobbyJoined = new Map();
         hostSetupOpened = false;
+        onlineHostStage = "create";
+        onlineJoinStage = "join";
+        onlineRoomCode = null;
+        onlineSelfName = "";
+        clientLobbyInfo = null;
         isHost = false;
         G = null;
         mode = null;
@@ -3054,6 +3358,93 @@
       // Online menu buttons (create/join -> goes to lobby with proper mode)
       btnOnlineCreate?.addEventListener("click", () => showLobby("online_host"));
       btnOnlineJoinMenu?.addEventListener("click", () => showLobby("online_join"));
+
+      // Online flow navigation
+      btnOnlineFlowBack?.addEventListener("click", () => {
+        // back to online menu
+        resetAll();
+        mode = "online_menu";
+        render();
+      });
+      btnOnlineCancelHost?.addEventListener("click", () => {
+        resetAll();
+        mode = "online_menu";
+        render();
+      });
+      btnOnlineCancelJoin?.addEventListener("click", () => {
+        resetAll();
+        mode = "online_menu";
+        render();
+      });
+
+      btnOnlineCreateRoom?.addEventListener("click", async () => {
+        if (mode !== "online_host") return;
+        const nm = normalizeName(inpOnlineNameHost?.value || "", "Player");
+        onlineSelfName = nm;
+        inpName.value = nm;
+        onlineRoomCode = safeUpperCode(5);
+        onlineHostStage = "wait";
+        setRoomStatus("pending", "রুম স্ট্যাটাস: খুলছে…");
+        // create host peer room
+        btnOnlineCreateRoom.disabled = true;
+        try {
+          await setupOnlineHost(onlineRoomCode);
+        } finally {
+          btnOnlineCreateRoom.disabled = false;
+        }
+        showOnlineFlow("wait", { roomCode: onlineRoomCode, isHostView: true });
+        updateWaitLobbyUI();
+      });
+
+      btnOnlineJoinRoom?.addEventListener("click", async () => {
+        if (mode !== "online_join") return;
+        const nm = normalizeName(inpOnlineNameJoin?.value || "", "Player");
+        const code = (inpOnlineRoomJoin?.value || "").trim().toUpperCase();
+        if (!code) {
+          await showModal({ title: "রুম কোড দরকার", text: "রুম কোড লিখুন।", buttons: [{ label: "OK", value: true, kind: "primary" }] });
+          return;
+        }
+        onlineSelfName = nm;
+        inpName.value = nm;
+        onlineRoomCode = code;
+        onlineJoinStage = "wait";
+        clientLobbyInfo = null;
+        setRoomStatus("pending", "রুম স্ট্যাটাস: সংযোগ হচ্ছে…");
+        btnOnlineJoinRoom.disabled = true;
+        try {
+          await setupOnlineJoin(code);
+        } finally {
+          btnOnlineJoinRoom.disabled = false;
+        }
+        showOnlineFlow("wait", { roomCode: code, isHostView: false });
+        updateWaitLobbyUI();
+      });
+
+      btnWaitLeave?.addEventListener("click", () => {
+        resetAll();
+        mode = "online_menu";
+        render();
+      });
+
+      btnWaitStart?.addEventListener("click", async () => {
+        if (mode !== "online_host") return;
+        if (lobbyJoinCount() < 1) {
+          await showModal({
+            title: "প্লেয়ার দরকার",
+            text: "কমপক্ষে ১ জন প্লেয়ার জয়েন না করলে গেম শুরু করা যাবে না।",
+            buttons: [{ label: "OK", value: true, kind: "primary" }],
+          });
+          return;
+        }
+        // notify clients that host moved to setup
+        for (const [, conn] of connections.entries()) {
+          if (!conn || !conn._accepted) continue;
+          try { conn.send({ type: "start_setup" }); } catch {}
+        }
+        onlineHostStage = "setup";
+        hostSetupOpened = true;
+        render();
+      });
 
       btnCopy?.addEventListener("click", async () => {
         try {
