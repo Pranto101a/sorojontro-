@@ -13,317 +13,360 @@
         }
     </style>
 </head>
-<body class="bg-slate-950 text-white min-h-screen flex flex-col items-center justify-between font-sans selection:bg-amber-500 selection:text-black">
+<body class="bg-slate-950 text-white min-h-screen flex flex-col items-center justify-between font-sans select-none">
 
     <!-- ১. হোম স্ক্রিন -->
     <div id="home-screen" class="home-bg w-full min-h-screen flex flex-col items-center justify-center p-6 text-center">
-        <h1 class="text-5xl font-extrabold mb-2 text-slate-100 tracking-widest drop-shadow-md">ষড়যন্ত্র</h1>
+        <h1 class="text-6xl font-black mb-2 text-slate-100 tracking-widest drop-shadow-2xl">ষড়যন্ত্র</h1>
         <h2 class="text-2xl font-bold text-amber-500 mb-1">ষড়যন্ত্র-এ স্বাগতম!</h2>
         <p class="text-slate-400 text-sm mb-8 italic">প্রতারণা, অনুমান এবং ভাগ্যের খেলা।</p>
 
         <div class="w-full max-w-xs space-y-3">
             <button onclick="showLobby('local')" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-md transition flex items-center justify-center gap-2 shadow-lg text-sm">
-                ➕ নতুন খেলা তৈরি করুন (এক ফোনে)
+                📱 পাস অ্যান্ড প্লে (এক ফোনে বন্ধুদের সাথে)
             </button>
             <button onclick="showLobby('online_host')" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-md transition flex items-center justify-center gap-2 shadow-lg text-sm">
-                🌐 অনলাইন খেলা হোস্ট করুন (আলাদা ফোনে)
+                🌐 অনলাইন ম্যাচ হোস্ট করুন (আলাদা ফোনে)
             </button>
             <button onclick="showLobby('online_join')" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 px-4 rounded-md transition flex items-center justify-center gap-2 shadow-lg text-sm">
-                🔗 বিদ্যমান খেলায় যোগ দিন
+                🔗 কোড দিয়ে ম্যাচে যোগ দিন
             </button>
         </div>
     </div>
 
-    <!-- ২. লবি ও ক্যারেক্টার সিলেকশন স্ক্রিন -->
+    <!-- ২. লবি স্ক্রিন -->
     <div id="lobby-screen" class="hidden bg-slate-900 p-6 rounded-xl border border-slate-800 w-full max-w-md shadow-2xl my-auto mx-4">
-        <h2 id="lobby-title" class="text-2xl font-bold text-center text-amber-500 mb-4">গেম সেটিংস</h2>
+        <h2 class="text-2xl font-bold text-center text-amber-500 mb-4">গেম সেটিংস</h2>
         
         <div class="space-y-4">
             <div>
-                <label class="block text-xs font-semibold text-slate-400 mb-1">আপনার নাম লিখুন:</label>
-                <input id="player-name" type="text" value="Rayed" class="w-full p-2.5 rounded bg-slate-800 border border-slate-700 text-center focus:outline-none focus:border-amber-500 text-sm font-bold">
+                <label class="block text-xs font-semibold text-slate-400 mb-1">আপনার নাম:</label>
+                <input id="player-name" type="text" value="Rayed" class="w-full p-2.5 rounded bg-slate-800 border border-slate-700 text-center focus:outline-none focus:border-amber-500 text-sm font-bold text-white">
             </div>
 
             <div id="room-id-section" class="hidden bg-slate-950 p-3 rounded border border-slate-800 text-center">
-                <p class="text-xs text-slate-400">রুম আইডি (বন্ধুদের জানান):</p>
+                <p class="text-xs text-slate-400">রুম আইডি (বন্ধুদের পাঠান):</p>
                 <p id="generated-room-id" class="text-xl font-mono font-bold text-amber-400 tracking-wider mt-1">তৈরি হচ্ছে...</p>
-                <input id="join-room-id" type="text" placeholder="বন্ধুর রুম আইডিটি এখানে দিন" class="hidden w-full p-2 mt-2 rounded bg-slate-800 border border-slate-700 text-center font-mono text-sm">
+                <input id="join-room-id" type="text" placeholder="রুম আইডি এখানে দিন" class="hidden w-full p-2 mt-2 rounded bg-slate-800 border border-slate-700 text-center font-mono text-sm text-white">
             </div>
 
             <div id="card-selection-box">
-                <p class="text-amber-400 font-bold text-xs mb-2">🃏 যেকোনো ৫টি ক্যারেক্টার কার্ড বেছে নিন:</p>
-                <div class="grid grid-cols-2 gap-1.5 text-xs bg-slate-950 p-2.5 rounded max-h-40 overflow-y-auto border border-slate-800">
-                    <label class="flex items-center gap-2 p-1 bg-slate-900/50 rounded"><input type="checkbox" class="card-checkbox" value="বীর বিক্রম" checked> বীর বিক্রম</label>
-                    <label class="flex items-center gap-2 p-1 bg-slate-900/50 rounded"><input type="checkbox" class="card-checkbox" value="মামদো-হমদো" checked> মামদো-হমদো</label>
-                    <label class="flex items-center gap-2 p-1 bg-slate-900/50 rounded"><input type="checkbox" class="card-checkbox" value="কালু ডাকাত" checked> কালু ডাকাত</label>
-                    <label class="flex items-center gap-2 p-1 bg-slate-900/50 rounded"><input type="checkbox" class="card-checkbox" value="পেটুকচন্দ্র" checked> পেটুকচন্দ্র</label>
-                    <label class="flex items-center gap-2 p-1 bg-slate-900/50 rounded"><input type="checkbox" class="card-checkbox" value="ব্রহ্মদত্ত" checked> ব্রহ্মদত্ত</label>
-                    <label class="flex items-center gap-2 p-1 bg-slate-900/50 rounded"><input type="checkbox" class="card-checkbox" value="জীনের বাদশাহ"> জীনের বাদশাহ</label>
-                    <label class="flex items-center gap-2 p-1 bg-slate-900/50 rounded"><input type="checkbox" class="card-checkbox" value="বেতাল"> বেতাল</label>
-                    <label class="flex items-center gap-2 p-1 bg-slate-900/50 rounded"><input type="checkbox" class="card-checkbox" value="নান্টু মিয়া"> নান্টু মিয়া</label>
-                    <label class="flex items-center gap-2 p-1 bg-slate-900/50 rounded"><input type="checkbox" class="card-checkbox" value="অরুণ"> অরুণ</label>
-                    <label class="flex items-center gap-2 p-1 bg-slate-900/50 rounded"><input type="checkbox" class="card-checkbox" value="ছিচকে চোর"> ছিচকে চোর</label>
+                <p class="text-amber-400 font-bold text-xs mb-2">🃏 ক্যারেক্টার পুল (৫টি সিলেক্টেড):</p>
+                <div class="grid grid-cols-2 gap-1.5 text-xs bg-slate-950 p-2.5 rounded border border-slate-800">
+                    <label class="flex items-center gap-2 p-1"><input type="checkbox" class="card-checkbox" value="বীর বিক্রম" checked> বীর বিক্রম</label>
+                    <label class="flex items-center gap-2 p-1"><input type="checkbox" class="card-checkbox" value="মামদো-হमদো" checked> মামদো-হমদো</label>
+                    <label class="flex items-center gap-2 p-1"><input type="checkbox" class="card-checkbox" value="কালু ডাকাত" checked> কালু ডাকাত</label>
+                    <label class="flex items-center gap-2 p-1"><input type="checkbox" class="card-checkbox" value="পেটুকচন্দ্র" checked> পেটুকচন্দ্র</label>
+                    <label class="flex items-center gap-2 p-1"><input type="checkbox" class="card-checkbox" value="ব্রহ্মদত্ত" checked> ব্রহ্মদত্ত</label>
+                    <label class="flex items-center gap-2 p-1"><input type="checkbox" class="card-checkbox" value="জীনের বাদশাহ" checked> জীনের বাদশাহ</label>
                 </div>
             </div>
 
             <div id="player-count-section">
                 <label class="text-slate-400 font-semibold text-xs block mb-1">মোট খেলোয়াড় সংখ্যা:</label>
-                <select id="total-players" class="w-full p-2.5 rounded bg-slate-800 border border-slate-700 text-sm">
-                    <option value="2">২ জন (Duels)</option>
-                    <option value="3" selected>৩ জন (ট্রিও)</option>
-                    <option value="4">৪ জন (স্কোয়াড)</option>
+                <select id="total-players" class="w-full p-2.5 rounded bg-slate-800 border border-slate-700 text-sm text-white">
+                    <option value="2">২ জন খেলোয়াড়</option>
+                    <option value="3" selected>৩ জন খেলোয়াড়</option>
+                    <option value="4">৪ জন খেলোয়াড়</option>
                 </select>
             </div>
 
-            <button onclick="initiateGameMode()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded transition shadow-md text-sm">খেলা শুরু করুন 🚀</button>
+            <button onclick="initiateGameEngine()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded transition text-sm">খেলা শুরু করুন 🚀</button>
         </div>
     </div>
 
-    <!-- ৩. সিকিউরিটি পাস স্ক্রিন (এক ফোনে হাত বদল করে খেলার জন্য) -->
-    <div id="pass-screen" class="hidden fixed inset-0 bg-slate-950 flex flex-col items-center justify-center p-6 text-center z-50">
-        <div class="bg-slate-900 p-8 rounded-xl border border-amber-500/30 max-w-sm shadow-2xl">
-            <span class="text-5xl block mb-4">📱</span>
-            <h3 id="pass-instruction" class="text-xl font-bold text-amber-400 mb-2">পরবর্তী চাল: saba</h3>
-            <p class="text-slate-400 text-xs mb-6">আপনার কার্ড গোপন রাখতে ফোনটি তার হাতে দিন এবং নিচের বাটনে চাপুন।</p>
-            <button onclick="revealNextTurn()" class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-2.5 px-6 rounded transition text-sm">আমার কার্ড দেখাও 👁️</button>
-        </div>
-    </div>
-
-    <!-- ৪. মেইন গেম বোর্ড স্ক্রিন (ইউটিউব স্ক্রিনশটের হুবহু ক্লোন লেআউট) -->
+    <!-- ৩. মেইন গেম বোর্ড (ইউটিউব স্ক্রিনশটের হুবহু লেআউট) -->
     <div id="game-screen" class="hidden w-full max-w-6xl mx-auto p-4 flex flex-col justify-between min-h-screen">
         
-        <!-- টপ সেকশন: গেমের নাম ও কার টার্ন তার ইন্ডিকেটর -->
+        <!-- টপ ব্যানার: কার টার্ন চলতাছে -->
         <div class="text-center w-full pt-2">
-            <h1 class="text-xl font-black text-slate-400 tracking-widest uppercase">ষড়যন্ত্র</h1>
-            <div id="turn-banner" class="text-3xl font-extrabold text-green-400 mt-2 drop-shadow">
-                Rayed-এর টার্ন
-            </div>
+            <h1 class="text-xl font-black text-slate-500 tracking-widest uppercase">ষড়যন্ত্র অনলাইন</h1>
+            <div id="turn-banner" class="text-3xl font-extrabold text-green-400 mt-2 drop-shadow">Rayed-এর টার্ন</div>
         </div>
 
-        <!-- মিডল সেকশন: ২টা কার্ড এবং ডানপাশে ইভেন্ট লগ -->
+        <!-- মিডল এরিয়া: ২টা কার্ড এবং ডানপাশে চ্যালেঞ্জ/লাইভ অ্যাকশন প্যানেল -->
         <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 my-auto w-full items-center">
-            
-            <!-- ফাকা স্পেস ব্যালেন্স করার জন্য -->
             <div class="hidden lg:block"></div>
 
-            <!-- মাঝখানের ২টি বড় কার্ডের ডিসপ্লে এরিয়া -->
+            <!-- একটিভ প্লেয়ারের কার্ড ডিসপ্লে -->
             <div class="col-span-1 lg:col-span-2 flex flex-col items-center justify-center">
-                <div id="my-cards" class="flex gap-6 justify-center items-center py-4 w-full">
-                    <!-- কার্ড দুটি এখানে ডাইনামিকালি লোড হবে -->
-                </div>
+                <div id="my-cards" class="flex gap-6 justify-center items-center py-4 w-full"></div>
 
-                <!-- অ্যাকশন বাটনসমূহ (কার্ডের ঠিক নিচে) -->
-                <div id="action-panel" class="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-4 w-full max-w-md">
-                    <!-- বাটন এখানে আসবে -->
+                <!-- অ্যাকশন বাটন গ্রিড -->
+                <div id="action-panel" class="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-4 w-full max-w-md"></div>
+                
+                <!-- ডাইনামিক চ্যালেঞ্জ এবং রেসপন্স ইন্টারফেস (নতুন যুক্ত করা হয়েছে) -->
+                <div id="reaction-panel" class="hidden w-full max-w-md bg-amber-950/40 border border-amber-500/50 p-4 rounded-xl mt-4 text-center">
+                    <p id="reaction-text" class="text-sm font-bold text-amber-300 mb-3"></p>
+                    <div id="reaction-buttons" class="flex flex-wrap gap-2 justify-center"></div>
                 </div>
             </div>
 
-            <!-- ডানপাশের লাইভ অ্যাক্টিভিটি ইভেন্ট লগ -->
-            <div class="bg-slate-900/90 p-4 rounded-xl border border-slate-800/80 h-64 lg:h-80 flex flex-col justify-between shadow-2xl col-span-1">
+            <!-- ডানপাশের লাইভ ইভেন্ট লগ -->
+            <div class="bg-slate-900/90 p-4 rounded-xl border border-slate-800 h-64 lg:h-80 flex flex-col justify-between shadow-2xl col-span-1">
                 <div>
-                    <h3 class="text-xs font-bold mb-2 text-amber-500 border-b border-slate-800 pb-1 uppercase tracking-wider">ইভেন্ট লগ</h3>
-                    <div id="game-logs" class="text-[12px] space-y-1 h-48 lg:h-64 overflow-y-auto text-emerald-400 font-mono scrollbar-thin">
-                        <!-- লাইভ গেম অ্যাকশন হিস্ট্রি এখানে প্রিন্ট হবে -->
-                    </div>
+                    <h3 class="text-xs font-bold mb-2 text-amber-500 border-b border-slate-800 pb-1 uppercase">ইভেন্ট লগ</h3>
+                    <div id="game-logs" class="text-[12px] space-y-1 h-48 lg:h-64 overflow-y-auto text-emerald-400 font-mono"></div>
                 </div>
             </div>
         </div>
 
-        <!-- বটম সেকশন: প্লেয়ারদের স্ট্যাটাস বক্সসমূহ (ইউটিউব স্ক্রিনশটের মতো চারকোনা গ্রিড) -->
+        <!-- বটম এরিয়া: চারকোনা প্লেয়ার স্ট্যাটাস গ্রিড (হুবহু স্ক্রিনশটের মতো বক্স) -->
         <div class="w-full pb-6 border-t border-slate-900 pt-4">
-            <div id="player-status-row" class="flex flex-wrap gap-4 justify-center items-center">
-                <!-- সব প্লেয়ারদের ইনফো বক্স এখানে লোড হবে -->
-            </div>
+            <div id="player-status-row" class="flex flex-wrap gap-4 justify-center items-center"></div>
         </div>
     </div>
 
     <script>
-        const CARD_POOL = [
-            { name: "বীর বিক্রম", action: "৩ মুদ্রা নেওয়া", block: "রপ্তানি ঠেকানো", image: "images/bir_bikrom.jpg" },
-            { name: "মামদো-হমদো", action: "কয়েন নেওয়া", block: "নাই", image: "images/mamdo_homdo.jpg" },
-            { name: "কালু ডাকাত", action: "২ মুদ্রা ছিনিয়ে নেওয়া", block: "ডাকাতি বন্ধ করা", image: "images/kalu_dakat.jpg" },
-            { name: "পেটুকচন্দ্র", action: "২টি কার্ড বদল", block: "ডাকাতি ঠেকানো", image: "images/petuk_chondro.jpg" },
-            { name: "ব্রহ্মদত্ত", action: "৩ মুদ্রা দিয়ে ঘাড় মটকানো", block: "নাই", image: "images/brohmodotto.jpg" },
-            { name: "জীনের বাদশাহ", action: "ঘাড় মটকানো ঠেকানো", block: "ঘাড় মটকানো ঠেকানো", image: "images/jiner_badshah.jpg" },
-            { name: "বেতাল", action: "অদ্ভুতুড়ে আক্রমণ", block: "নাই", image: "images/betal.jpg" },
-            { name: "নান্টু মিয়া", action: "ধাপ্পাবাজি", block: "নাই", image: "images/nantu_miah.jpg" },
-            { name: "অরুণ", action: "ডেক দেখা", block: "নাই", image: "images/arun.jpg" },
-            { name: "ছিচকে চোর", action: "সবার থেকে ১ কয়েন চুরি", block: "চুরি ব্লক করা", image: "images/chichke_chor.jpg" }
-        ];
+        const CARD_DATA = {
+            "বীর বিক্রম": { action: "৩ মুদ্রা নেওয়া", block: "নাই", image: "images/bir_bikrom.jpg" },
+            "মামদো-হমদো": { action: "২ মুদ্রা নেওয়া", block: "নাই", image: "images/mamdo_homdo.jpg" },
+            "কালু ডাকাত": { action: "২ মুদ্রা ডাকাতি", block: "ডাকাতি বন্ধ", image: "images/kalu_dakat.jpg" },
+            "পেটুকচন্দ্র": { action: "কার্ড বদল করা", block: "ডাকাতি বন্ধ", image: "images/petuk_chondro.jpg" },
+            "ব্রহ্মদত্ত": { action: "ঘাড় মটকানো (৩ কয়েন)", block: "নাই", image: "images/brohmodotto.jpg" },
+            "জীনের বাদশাহ": { action: "নাই", block: "ঘাড় মটকানো ঠেকানো", image: "images/jiner_badshah.jpg" }
+        };
 
-        let mode = 'local'; 
-        let peer = null;
-        let conn = null;
-        let state = { players: [], deck: [], currentTurn: 0, logs: [], selectedCards: [] };
+        let mode = 'local';
+        let state = { players: [], deck: [], currentTurn: 0, logs: [], selectedCards: [], currentAction: null };
 
-        function showLobby(selectedMode) {
-            mode = selectedMode;
+        function showLobby(m) {
+            mode = m;
             document.getElementById('home-screen').classList.add('hidden');
             document.getElementById('lobby-screen').classList.remove('hidden');
-            
             if(mode === 'online_host') {
                 document.getElementById('room-id-section').classList.remove('hidden');
-                document.getElementById('player-count-section').classList.remove('hidden');
-                const roomId = Math.floor(100000 + Math.random() * 900000);
-                document.getElementById('generated-room-id').innerText = roomId;
-                initPeer(roomId);
+                document.getElementById('generated-room-id').innerText = Math.floor(100000 + Math.random() * 900000);
             } else if (mode === 'online_join') {
                 document.getElementById('room-id-section').classList.remove('hidden');
                 document.getElementById('join-room-id').classList.remove('hidden');
                 document.getElementById('generated-room-id').classList.add('hidden');
-                document.getElementById('player-count-section').classList.add('hidden');
                 document.getElementById('card-selection-box').classList.add('hidden');
+                document.getElementById('player-count-section').classList.add('hidden');
             }
         }
 
-        function initPeer(id) {
-            peer = new Peer(id);
-            peer.on('connection', (connection) => {
-                conn = connection;
-                setupDataListener();
-                alert("📢 আপনার বন্ধু অনলাইনে খেলায় যোগ দিয়েছে!");
-            });
-        }
-
-        function setupDataListener() {
-            conn.on('data', (data) => {
-                if(data.type === 'sync') {
-                    state = data.state;
-                    updateUI();
-                }
-            });
-        }
-
-        function initiateGameMode() {
-            const name = document.getElementById('player-name').value.trim() || "Rayed";
-            
-            if(mode === 'online_join') {
-                const targetId = document.getElementById('join-room-id').value.trim();
-                peer = new Peer();
-                peer.on('open', () => {
-                    conn = peer.connect(targetId);
-                    conn.on('open', () => {
-                        conn.send({ type: 'join', name: name });
-                        setupDataListener();
-                        document.getElementById('lobby-screen').classList.add('hidden');
-                        document.getElementById('game-screen').classList.remove('hidden');
-                    });
-                });
-                return;
-            }
-
+        function initiateGameEngine() {
+            const masterName = document.getElementById('player-name').value.trim() || "Rayed";
             const checkedBoxes = document.querySelectorAll('.card-checkbox:checked');
-            if (checkedBoxes.length !== 5) return alert("⚠️ অনুগ্রহ করে ঠিক ৫টি ক্যারেক্টার কার্ড সিলেক্ট করুন!");
-
             state.selectedCards = Array.from(checkedBoxes).map(cb => cb.value);
-            const total = parseInt(document.getElementById('total-players').value);
+            
+            if(state.selectedCards.length < 3) return alert("⚠️ খেলার জন্য কমপক্ষে ৩টি ক্যারেক্টার কার্ড সিলেক্ট করুন!");
 
-            // প্লেয়ার লিস্ট জেনারেট করা
-            state.players = [{ name: name, coins: 2, cards: [], id: 0 }];
-            const botNames = ["saba", "Saim Nafi", "Pranto"];
-            for (let i = 2; i <= total; i++) {
-                state.players.push({ name: botNames[i-2] || `প্লেয়ার ০${i}`, coins: 2, cards: [], id: i-1 });
+            const total = parseInt(document.getElementById('total-players').value);
+            state.players = [{ name: masterName, coins: 2, cards: [], lives: 2, deadCards: [] }];
+            
+            const standardOpponents = ["saba", "Saim Nafi", "Pranto"];
+            for(let i = 2; i <= total; i++) {
+                state.players.push({ name: standardOpponents[i-2], coins: 2, cards: [], lives: 2, deadCards: [] });
             }
 
-            let filteredPool = CARD_POOL.filter(c => state.selectedCards.includes(c.name));
-            state.deck = [...filteredPool, ...filteredPool, ...filteredPool].sort(() => Math.random() - 0.5);
+            // ডেক তৈরি ও ডিস্ট্রিবিউশন
+            let pool = [];
+            state.selectedCards.forEach(c => { pool.push(c(), c(), c()); }); 
+            state.deck = state.selectedCards.flatMap(c => [c, c, c]).sort(() => Math.random() - 0.5);
 
-            state.players.forEach(p => { p.cards = [state.deck.pop(), state.deck.pop()]; });
-            state.logs = ["খেলা শুরু হয়েছে!", "ডেক থেকে সবার হাতে ২টি করে গোপন কার্ড দেওয়া হয়েছে।"];
+            state.players.forEach(p => {
+                p.cards = [state.deck.pop(), state.deck.pop()];
+            });
+
+            state.logs = ["📢 খেলা শুরু হয়েছে!", "🃏 সবার হাতে ২টি করে গোপন কার্ড দেওয়া হয়েছে।"];
             state.currentTurn = 0;
 
             document.getElementById('lobby-screen').classList.add('hidden');
             document.getElementById('game-screen').classList.remove('hidden');
             
-            triggerTurnSystem();
+            renderEngine();
         }
 
-        function triggerTurnSystem() {
-            if(mode === 'local' && state.currentTurn > 0) {
-                document.getElementById('pass-instruction').innerText = `পরবর্তী চাল: ${state.players[state.currentTurn].name}`;
-                document.getElementById('pass-screen').classList.remove('hidden');
-            } else {
-                updateUI();
-            }
-        }
-
-        function revealNextTurn() {
-            document.getElementById('pass-screen').classList.add('hidden');
-            updateUI();
-        }
-
-        function updateUI() {
+        function renderEngine() {
             const activeP = state.players[state.currentTurn];
-            
-            // ১. কার টার্ন তার ব্যানার আপডেট (যেমন: Rayed-এর টার্ন)
             document.getElementById('turn-banner').innerText = `${activeP.name}-এর টার্ন`;
 
-            // ২. মাঝখানের দুটি কার্ডের ডিসপ্লে (ইউটিউব স্ক্রিনশটের স্টাইল)
-            document.getElementById('my-cards').innerHTML = activeP.cards.map(c => `
-                <div class="bg-slate-900 border-2 border-amber-500/60 rounded-xl overflow-hidden w-40 sm:w-48 shadow-2xl transition transform hover:scale-105 flex flex-col justify-between h-64 sm:h-72">
-                    <div class="h-3/4 bg-cover bg-center relative" style="background-image: url('${c.image}');">
-                        <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-slate-950 p-2 text-center">
-                            <span class="text-sm font-black tracking-wide text-white block">${c.name}</span>
+            // কার্ড ডিসপ্লে লজিক
+            document.getElementById('my-cards').innerHTML = activeP.cards.map((c, i) => `
+                <div class="bg-slate-900 border-2 border-amber-500/60 rounded-xl overflow-hidden w-36 sm:w-44 shadow-2xl flex flex-col justify-between h-56 sm:h-64">
+                    <div class="h-3/4 bg-slate-800 flex items-center justify-center relative bg-cover bg-center" style="background-image: url('images/\${c === 'বীর বিক্রম'?'bir_bikrom':c === 'মামদো-হमদো'?'mamdo_homdo':c === 'কালু ডাকাত'?'kalu_dakat':c === 'পেটুকচন্দ্র'?'petuk_chondro':c === 'ব্রহ্মদত্ত'?'brohmodotto':'jiner_badshah'}.jpg')">
+                        <div class="absolute bottom-0 left-0 right-0 bg-slate-950/80 p-1.5 text-center">
+                            <span class="text-xs font-black text-white block">\${c}</span>
                         </div>
                     </div>
-                    <div class="p-2 bg-slate-950 text-center border-t border-slate-800">
-                        <span class="text-[10px] text-amber-400 block font-medium">🛡️ ${c.block}</span>
+                    <div class="p-1.5 bg-slate-950 text-center border-t border-slate-800">
+                        <span class="text-[10px] text-amber-400 block font-semibold">🛡️ \${CARD_DATA[c]?.block || 'ব্লক নেই'}</span>
                     </div>
                 </div>
             `).join('');
 
-            // ৩. অ্যাকশন বাটন প্যানেল
-            document.getElementById('action-panel').innerHTML = state.selectedCards.map(cName => `
-                <button onclick="playAction('${cName}')" class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs py-2 px-3 rounded shadow transition-all duration-150 transform active:scale-95">${cName}</button>
-            `).join('');
+            // অ্যাকশন বাটন প্যানেল রেন্ডার
+            if (state.currentAction === null) {
+                document.getElementById('action-panel').classList.remove('hidden');
+                document.getElementById('reaction-panel').classList.add('hidden');
+                document.getElementById('action-panel').innerHTML = state.selectedCards.map(cName => `
+                    <button onclick="handleActionDeclaration('\${cName}')" class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs py-2 px-1.5 rounded shadow transition active:scale-95">\${cName}</button>
+                `).join('') + `<button onclick="takeIncome()" class="bg-slate-700 hover:bg-slate-600 text-white font-bold text-xs py-2 px-1.5 rounded shadow col-span-2">১ কয়েন নেওয়া (Infallible)</button>`;
+            }
 
-            // ৪. বটম সেকশন: প্লেয়ারদের চারকোনা স্ট্যাটাস বক্স (ইউটিউব ভিডিওর মতন কালার কোডেড)
+            // বটম সেকশন: প্লেয়ার বক্স মেকিং (হুবহু ইউটিউব স্টাইল)
             document.getElementById('player-status-row').innerHTML = state.players.map((p, idx) => {
                 const isCurrent = idx === state.currentTurn;
-                // বর্তমান প্লেয়ার হলে সবুজ থিম, অন্য প্লেয়ারদের জন্য মেটে/বাদামী থিম
-                const boxBg = isCurrent ? 'bg-emerald-700 border-emerald-500' : 'bg-orange-950/40 border-orange-900/60';
+                const boxBg = p.lives === 0 ? 'bg-slate-900 opacity-40 border-slate-950' : (isCurrent ? 'bg-emerald-700 border-emerald-500' : 'bg-orange-950/40 border-orange-900/60');
                 
+                let cardStatusHTML = '';
+                for(let l=0; l<p.lives; l++) cardStatusHTML += `<span class="bg-slate-950 border border-slate-800 text-[9px] px-1.5 py-0.5 rounded text-emerald-400 font-bold">?</span>`;
+                p.deadCards.forEach(dc => {
+                    cardStatusHTML += `<span class="bg-red-950 border border-red-900 text-[9px] px-1 py-0.5 rounded text-red-400 font-mono line-through font-bold">\${dc}</span>`;
+                });
+
                 return `
-                    <div class="${boxBg} border-2 rounded-xl p-3 w-28 sm:w-32 flex flex-col items-center justify-between shadow-xl text-center">
-                        <span class="text-xs sm:text-sm font-black tracking-wide text-slate-100 border-b border-white/10 pb-1 w-full truncate">${p.name}</span>
-                        <span class="text-xs font-bold text-amber-300 my-2 flex items-center gap-1">🪙 ${p.coins}</span>
-                        <div class="flex gap-1.5 mt-1">
-                            <span class="bg-slate-950/80 border border-slate-800 text-[10px] font-mono px-2 py-0.5 rounded text-slate-400 font-bold shadow-inner">?</span>
-                            <span class="bg-slate-950/80 border border-slate-800 text-[10px] font-mono px-2 py-0.5 rounded text-slate-400 font-bold shadow-inner">?</span>
-                        </div>
+                    <div class="\${boxBg} border-2 rounded-xl p-3 w-28 sm:w-32 flex flex-col items-center justify-between shadow-xl text-center">
+                        <span class="text-xs font-black text-slate-100 border-b border-white/10 pb-1 w-full truncate">	ext{\${p.name\}\}</span>
+                        <span class="text-xs font-bold text-amber-300 my-1.5">🪙 	ext{\${p.coins\}\}</span>
+                        <div class="flex flex-wrap gap-1 justify-center mt-1">	ext{\${cardStatusHTML\}\}</div>
                     </div>
                 `;
             }).join('');
 
-            // ৫. লগ আপডেট
             const logBox = document.getElementById('game-logs');
-            logBox.innerHTML = state.logs.map(l => `<p class="border-b border-slate-950 py-1 text-slate-300">⚡ ${l}</p>`).join('');
+            logBox.innerHTML = state.logs.map(l => `<p class="border-b border-slate-950/50 py-1 text-slate-200">⚡ 	ext{\${l\}\}</p>`).join('');
             logBox.scrollTop = logBox.scrollHeight;
         }
 
-        function playAction(act) {
+        function takeIncome() {
             let p = state.players[state.currentTurn];
-            state.logs.push(`${p.name} <span class="text-amber-400 font-bold">${act}</span> অ্যাকশন দাবি করেছে!`);
-            
-            if(act === 'वीर বিক্রম' || act === 'মামদো-হমদো') p.coins += 3;
-            if(act === 'ছিচকে চোর') {
-                state.players.forEach((other, idx) => {
-                    if(idx !== state.currentTurn && other.coins > 0) {
-                        other.coins -= 1; p.coins += 1;
-                    }
-                });
-                state.logs.push(`${p.name} সবার থেকে ১টি করে কয়েন চুরি করেছে!`);
-            }
-            if(act === 'কালু ডাকাত') {
-                p.coins += 2;
-                let targetIdx = (state.currentTurn + 1) % state.players.length;
-                state.players[targetIdx].coins = Math.max(0, state.players[targetIdx].coins - 2);
-                state.logs.push(`${p.name} ${state.players[targetIdx].name} এর থেকে ২ মুদ্রা ছিনিয়ে নিয়েছে!`);
-            }
+            p.coins += 1;
+            state.logs.push(`\${p.name} নিরাপদে ১টি মুদ্রা সংগ্রহ করেছে।`);
+            advanceTurn();
+        }
 
-            state.currentTurn = (state.currentTurn + 1) % state.players.length;
-            if(conn) conn.send({ type: 'sync', state: state });
-            triggerTurnSystem();
+        function handleActionDeclaration(cardName) {
+            let p = state.players[state.currentTurn];
+            if(cardName === 'ব্রহ্মদত্ত' && p.coins < 3) return alert("⚠️ ঘাড় মটকানোর জন্য কমপক্ষে ৩টি কয়েন প্রয়োজন!");
+
+            state.currentAction = { actorIdx: state.currentTurn, card: cardName, type: 'action' };
+            document.getElementById('action-panel').classList.add('hidden');
+            document.getElementById('reaction-panel').classList.remove('hidden');
+
+            document.getElementById('reaction-text').innerHTML = `💡 <b>\${p.name}</b> দাবি করেছে সে <b>'\${cardName}'</b> এবং পাওয়ার ব্যবহার করতে চায়!`;
+            
+            // চ্যালেঞ্জ ও রেসপন্স বাটন জেনারেশন
+            let btnHTML = '';
+            state.players.forEach((opp, idx) => {
+                if(idx !== state.currentTurn && opp.lives > 0) {
+                    btnHTML += `<button onclick="launchChallenge(\${idx})" class="bg-red-600 hover:bg-red-700 text-white text-[11px] font-bold py-1 px-2.5 rounded shadow">\${opp.name}: চ্যালেঞ্জ! 🛑</button>`;
+                    if(cardName === 'কালু ডাকাত' || cardName === 'ব্রহ্মদত্ত') {
+                        btnHTML += `<button onclick="launchBlock(\${idx})" class="bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold py-1 px-2.5 rounded shadow">\${opp.name}: ব্লক করুন 🛡️</button>`;
+                    }
+                }
+            });
+            btnHTML += `<button onclick="resolveActionEffect()" class="bg-green-600 hover:bg-green-700 text-white text-[11px] font-bold py-1 px-4 rounded shadow w-full mt-2">সবাই পাস (Execute) ➡️</button>`;
+            document.getElementById('reaction-buttons').innerHTML = btnHTML;
+        }
+
+        function launchChallenge(challengerIdx) {
+            let actor = state.players[state.currentAction.actorIdx];
+            let challenger = state.players[challengerIdx];
+            let neededCard = state.currentAction.card;
+
+            state.logs.push(`🛑 \${challenger.name} সরাসরি \${actor.name}-কে চ্যালেঞ্জ করেছে!`);
+
+            if(actor.cards.includes(neededCard)) {
+                // অ্যাক্টর সত্য বলছে! চ্যালেঞ্জার একটি কার্ড হারাবে
+                state.logs.push(`✅ \${actor.name} তার হাতের সত্য '\${neededCard}' কার্ডটি দেখিয়েছে!`);
+                killPlayerCard(challengerIdx);
+                
+                // অ্যাক্টর কার্ড পরিবর্তন করে ডেক থেকে নতুন কার্ড পাবে
+                let idx = actor.cards.indexOf(neededCard);
+                state.deck.push(actor.cards.splice(idx, 1)[0]);
+                state.deck.sort(() => Math.random() - 0.5);
+                actor.cards.push(state.deck.pop());
+
+                executeActualPower();
+            } else {
+                // অ্যাক্টর মিথ্যা বলছে/ধাপ্পাবাজি ধরে পড়েছে! অ্যাক্টর একটি কার্ড হারাবে
+                state.logs.push(`❌ \${actor.name} ধরা খেয়ে গেছে! সে মিথ্যা দাবি করছিল।`);
+                killPlayerCard(state.currentAction.actorIdx);
+            }
+            state.currentAction = null;
+            advanceTurn();
+        }
+
+        function launchBlock(blockerIdx) {
+            let blocker = state.players[blockerIdx];
+            let blockCard = state.currentAction.card === 'কালু ডাকাত' ? 'পেটুকচন্দ্র' : 'জীনের বাদশাহ';
+            
+            state.logs.push(`🛡️ \${blocker.name} দাবি করেছে সে '\text{\${blockCard\}\}' দিয়ে আক্রমণ ব্লক করবে!`);
+            
+            // ব্লককে চ্যালেঞ্জ করার সুযোগ
+            state.currentAction = { actorIdx: blockerIdx, card: blockCard, type: 'block' };
+            document.getElementById('reaction-text').innerHTML = `💡 <b>\${blocker.name}</b> ব্লক করার জন্য <b>'\${blockCard}'</b> দাবি করেছে!`;
+            
+            let btnHTML = '';
+            state.players.forEach((opp, idx) => {
+                if(idx !== blockerIdx && opp.lives > 0) {
+                    btnHTML += `<button onclick="launchChallenge(\${idx})" class="bg-red-600 hover:bg-red-700 text-white text-[11px] font-bold py-1 px-2.5 rounded shadow">\${opp.name}: চ্যালেঞ্জ ব্লক! 🛑</button>`;
+                }
+            });
+            btnHTML += `<button onclick="resolveBlockSuccess()" class="bg-green-600 hover:bg-green-700 text-white text-[11px] font-bold py-1 px-4 rounded shadow w-full mt-2">ব্লক মেনে নিন (Action Negated) ➡️</button>`;
+            document.getElementById('reaction-buttons').innerHTML = btnHTML;
+        }
+
+        function resolveBlockSuccess() {
+            state.logs.push(`🔒 ব্লক সফল হয়েছে! অ্যাকশন বাতিল করা হলো।`);
+            state.currentAction = null;
+            advanceTurn();
+        }
+
+        function resolveActionEffect() {
+            executeActualPower();
+            state.currentAction = null;
+            advanceTurn();
+        }
+
+        function executeActualPower() {
+            let actor = state.players[state.currentTurn];
+            let card = state.currentAction.card;
+
+            if(card === 'বীর বিক্রম') {
+                actor.coins += 3;
+                state.logs.push(`💰 \${actor.name} বীর বিক্রম ট্যাক্স হিসেবে ৩টি কয়েন পেয়েছে!`);
+            } else if(card === 'মামদো-হमদো') {
+                actor.coins += 2;
+                state.logs.push(`🪙 \${actor.name} মামদো-হমদোর সাহায্যে ২ মুদ্রা পেয়েছে!`);
+            } else if(card === 'কালু ডাকাত') {
+                let targetIdx = (state.currentTurn + 1) % state.players.length;
+                let target = state.players[targetIdx];
+                let stolen = Math.min(2, target.coins);
+                target.coins -= stolen; actor.coins += stolen;
+                state.logs.push(`⚔️ \${actor.name} কালু ডাকাত দিয়ে \${target.name} এর থেকে \${stolen} মুদ্রা লুট করেছে!`);
+            } else if(card === 'ব্রহ্মদত্ত') {
+                actor.coins -= 3;
+                let targetIdx = (state.currentTurn + 1) % state.players.length;
+                state.logs.push(`💀 \${actor.name} ব্রহ্মদত্তকে ৩ কয়েন সুপারি দিয়ে \${state.players[targetIdx].name}-এর ঘাড় মটকেছে!`);
+                killPlayerCard(targetIdx);
+            } else if(card === 'পেটুকচন্দ্র') {
+                actor.cards.push(state.deck.pop(), state.deck.pop());
+                actor.deck = actor.cards.sort(() => Math.random() - 0.5);
+                state.deck.push(actor.cards.pop(), actor.cards.pop());
+                state.logs.push(`🔄 \${actor.name} পেটুকচন্দ্রের সাহায্যে ডেকের কার্ড অদল-বদল করেছে।`);
+            }
+        }
+
+        function killPlayerCard(playerIdx) {
+            let p = state.players[playerIdx];
+            if(p.cards.length > 0) {
+                let dead = p.cards.pop();
+                p.deadCards.push(dead);
+                p.lives--;
+                state.logs.push(`💀 \${p.name} তার ১টি ক্যারেক্টার কার্ড [\text{\${dead\}\}] হারিয়েছে!`);
+            }
+        }
+
+        function advanceTurn() {
+            do {
+                state.currentTurn = (state.currentTurn + 1) % state.players.length;
+            } while (state.players[state.currentTurn].lives === 0);
+            
+            renderEngine();
         }
     </script>
 </body>
