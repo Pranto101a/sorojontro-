@@ -1,373 +1,2794 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="bn">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ষড়যন্ত্র অনলাইন - প্রতারণা, অনুমান এবং ভাগ্যের খেলা</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#070a12" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <title>ষড়যন্ত্র (Shorojontro) - Web MVP</title>
     <style>
-        .home-bg {
-            background: linear-gradient(rgba(15, 23, 42, 0.85), rgba(15, 23, 42, 0.95)), url('images/home_banner.jpg') no-repeat center center;
-            background-size: cover;
-        }
+      :root{
+        --bg0:#070a12;
+        --bg1:#0b1222;
+        --panel:#0f1a2e;
+        --panel2:#111c33;
+        --border:#233456;
+        --text:#e7eefc;
+        --muted:#9db0d6;
+        --good:#21c17a;
+        --warn:#f6b01e;
+        --bad:#ff4d4d;
+        --accent:#7c5cff;
+        --bg-image: url('assets/home_bg.jpg');
+      }
+      *{box-sizing:border-box}
+      body{
+        margin:0;
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans Bengali", "Noto Sans", sans-serif;
+        background: linear-gradient(180deg, var(--bg0), var(--bg1));
+        color:var(--text);
+        min-height:100vh;
+        position:relative;
+      }
+      body::before{
+        content:"";
+        position:fixed;
+        inset:0;
+        background:
+          radial-gradient(900px 600px at 20% 15%, rgba(124,92,255,.18), transparent 60%),
+          radial-gradient(900px 600px at 80% 25%, rgba(33,193,122,.15), transparent 65%),
+          radial-gradient(900px 600px at 50% 90%, rgba(246,176,30,.10), transparent 60%),
+          var(--bg-image) center / cover no-repeat fixed;
+        filter:saturate(.95) contrast(1.05);
+        opacity:.95;
+        z-index:-2;
+      }
+      body::after{
+        content:"";
+        position:fixed;
+        inset:0;
+        background:
+          linear-gradient(180deg, rgba(7,10,18,.75), rgba(11,18,34,.92)),
+          radial-gradient(900px 700px at 50% 20%, rgba(0,0,0,.15), transparent 62%);
+        z-index:-1;
+      }
+      a{color:inherit}
+      .container{max-width:1100px; margin:0 auto; padding:18px;}
+      .hidden{display:none !important}
+      .topbar{
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:12px;
+        padding:10px 14px;
+        border:1px solid var(--border);
+        background:rgba(17,28,51,.58);
+        backdrop-filter: blur(10px);
+        border-radius:14px;
+      }
+      .brand{
+        display:flex; flex-direction:column; gap:2px;
+      }
+      .brand b{letter-spacing:2px; text-transform:uppercase; font-size:12px; color:var(--muted)}
+      .brand span{font-size:18px; font-weight:900}
+      .btn{
+        appearance:none; border:1px solid var(--border);
+        background:rgba(17,28,51,.75);
+        color:var(--text);
+        padding:10px 12px;
+        border-radius:12px;
+        font-weight:800;
+        cursor:pointer;
+        transition: transform .06s ease, background .15s ease, border-color .15s ease;
+      }
+      .btn:hover{background:rgba(29,45,80,.75); border-color:#33538b}
+      .btn:active{transform:scale(.98)}
+      .btn.primary{background:linear-gradient(180deg, rgba(33,193,122,.9), rgba(16,145,90,.95)); border-color:#1b8d5c}
+      .btn.primary:hover{background:linear-gradient(180deg, rgba(33,193,122,.98), rgba(16,145,90,1));}
+      .btn.danger{background:linear-gradient(180deg, rgba(255,77,77,.9), rgba(185,35,35,.95)); border-color:#a92929}
+      .btn.warn{background:linear-gradient(180deg, rgba(246,176,30,.95), rgba(210,137,18,.95)); border-color:#b97a12; color:#141414}
+      .btn.ghost{background:transparent}
+      .btn.small{padding:7px 10px; border-radius:10px; font-weight:800; font-size:12px}
+      .card{
+        border:1px solid var(--border);
+        background:rgba(17,28,51,.56);
+        backdrop-filter: blur(10px);
+        border-radius:16px;
+        padding:16px;
+      }
+      .grid{
+        display:grid;
+        gap:14px;
+      }
+      .grid.home{
+        grid-template-columns: 1fr;
+        max-width:560px;
+        margin:0 auto;
+      }
+      #screen-home{
+        min-height: calc(100vh - 90px);
+        display:flex;
+        align-items:center;
+        justify-content:center;
+      }
+      .title{
+        text-align:center;
+        margin-top:0;
+        margin-bottom:18px;
+      }
+      .title h1{
+        margin:0;
+        font-size:56px;
+        letter-spacing:6px;
+        font-weight:1000;
+        text-shadow: 0 20px 60px rgba(0,0,0,.55);
+      }
+      .title p{margin:6px 0 0 0; color:var(--muted); font-style:italic}
+      .subtitle{color:var(--warn); font-weight:900; margin-top:8px}
+
+      /* Home buttons to match reference style */
+      .btn.green{background:linear-gradient(180deg, rgba(33,193,122,.98), rgba(16,145,90,1)); border-color:#1b8d5c}
+      .btn.blue{background:linear-gradient(180deg, rgba(61,120,255,.95), rgba(40,85,210,1)); border-color:#2d4fb6}
+      .btn.dark{background:linear-gradient(180deg, rgba(23,31,48,.95), rgba(12,18,31,1)); border-color:rgba(255,255,255,.10)}
+      .btn.gray{background:linear-gradient(180deg, rgba(90,100,125,.40), rgba(35,45,70,.55)); border-color:rgba(255,255,255,.10)}
+      .btn.green:hover,.btn.blue:hover,.btn.dark:hover,.btn.gray:hover{filter:brightness(1.06)}
+      .row{display:flex; gap:12px; flex-wrap:wrap; align-items:center}
+      .field{display:flex; flex-direction:column; gap:6px}
+      label{font-size:12px; font-weight:900; color:var(--muted)}
+      input, select{
+        background:rgba(8,12,22,.65);
+        border:1px solid var(--border);
+        color:var(--text);
+        padding:10px 12px;
+        border-radius:12px;
+        outline:none;
+        font-weight:800;
+      }
+      input::placeholder{color:#6e84b2}
+      .nameGrid{
+        display:grid;
+        grid-template-columns: 1fr;
+        gap:10px;
+      }
+      @media (min-width: 680px){
+        .nameGrid{grid-template-columns: 1fr 1fr;}
+      }
+      .pill{
+        display:inline-flex; align-items:center; gap:8px;
+        padding:8px 10px;
+        border-radius:999px;
+        border:1px solid var(--border);
+        background:rgba(8,12,22,.55);
+        color:var(--muted);
+        font-weight:900;
+        font-size:12px;
+      }
+      .layout-game{
+        display:grid;
+        grid-template-columns: 1fr;
+        gap:14px;
+        margin-top:14px;
+      }
+      @media (min-width: 980px){
+        .layout-game{grid-template-columns: 2fr 1fr;}
+      }
+      .panel{
+        border:1px solid var(--border);
+        background:rgba(17,28,51,.50);
+        border-radius:16px;
+        padding:14px;
+      }
+      .turnBanner{
+        font-weight:1000;
+        font-size:22px;
+      }
+      .turnBanner .name{color:var(--good)}
+      .muted{color:var(--muted)}
+      .logs{
+        height:320px;
+        overflow:auto;
+        padding-right:6px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+        font-size:12px;
+        line-height:1.35;
+      }
+      .logline{
+        padding:8px 8px;
+        border-bottom:1px dashed rgba(35,52,86,.55);
+        color:#dbe6ff;
+      }
+      .players{
+        display:grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap:12px;
+        margin-top:12px;
+      }
+      .pbox{
+        border:1px solid rgba(255,255,255,.10);
+        background:
+          radial-gradient(220px 120px at 30% 20%, rgba(124,92,255,.14), transparent 72%),
+          radial-gradient(220px 140px at 70% 80%, rgba(33,193,122,.10), transparent 72%),
+          rgba(8,12,22,.55);
+        border-radius:16px;
+        padding:10px;
+        text-align:center;
+        box-shadow: 0 18px 60px rgba(0,0,0,.30);
+      }
+      .pbox.current{
+        border-color: rgba(33,193,122,.75);
+        box-shadow: 0 22px 80px rgba(33,193,122,.14);
+      }
+      .pbox.dead{
+        opacity:.45;
+        border-color: rgba(35,52,86,.45);
+        background: rgba(17,28,51,.25);
+      }
+      .pname{font-weight:1000; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+      .pcoins{font-weight:1000; margin-top:6px; color:var(--warn)}
+      .plives{display:flex; flex-wrap:wrap; justify-content:center; gap:6px; margin-top:8px}
+      .life{
+        font-size:11px;
+        font-weight:1000;
+        padding:4px 7px;
+        border-radius:10px;
+        border:1px solid rgba(35,52,86,.75);
+        background:rgba(8,12,22,.65);
+        color: var(--good);
+      }
+      .life.revealed{
+        text-decoration: line-through;
+        color: var(--bad);
+        border-color: rgba(255,77,77,.45);
+        background: rgba(255,77,77,.10);
+      }
+      .mycards{display:flex; flex-wrap:wrap; gap:12px; justify-content:center; margin-top:6px}
+      .roleCard{
+        width:170px;
+        border-radius:16px;
+        border:1px solid rgba(246,176,30,.35);
+        background:
+          radial-gradient(180px 120px at 30% 20%, rgba(246,176,30,.18), transparent 70%),
+          radial-gradient(220px 160px at 70% 65%, rgba(124,92,255,.16), transparent 72%),
+          rgba(8,12,22,.55);
+        padding:12px;
+        text-align:left;
+      }
+      .roleName{font-weight:1000; font-size:15px}
+      .roleSmall{margin-top:6px; font-size:12px; color:var(--muted); font-weight:900}
+      .actions{display:grid; grid-template-columns: repeat(2, 1fr); gap:10px; margin-top:12px;}
+      @media (min-width: 560px){ .actions{grid-template-columns: repeat(3, 1fr);} }
+      .footerHint{margin-top:8px; font-size:12px; color:var(--muted); text-align:center}
+      .modalBackdrop{
+        position:fixed; inset:0;
+        background:rgba(0,0,0,.55);
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        padding:18px;
+        z-index:9999;
+      }
+      .modal{
+        width:min(640px, 100%);
+        border:1px solid var(--border);
+        background:rgba(11,18,34,.92);
+        border-radius:18px;
+        padding:16px;
+        box-shadow: 0 30px 120px rgba(0,0,0,.55);
+      }
+      .modal h3{margin:0; font-size:16px; font-weight:1000}
+      .modal p{margin:10px 0 0 0; color:var(--muted); font-weight:800; line-height:1.45}
+      .modal .buttons{display:flex; flex-wrap:wrap; gap:10px; margin-top:14px; justify-content:flex-end}
+      .divider{height:1px; background:rgba(35,52,86,.6); margin:12px 0}
+      .notice{
+        font-size:12px;
+        color:var(--muted);
+        font-weight:900;
+        line-height:1.4;
+      }
+      .kpi{display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin-top:10px}
+      .kpi .pill b{color:var(--text)}
+      .tag{
+        display:inline-flex;
+        gap:6px;
+        align-items:center;
+        padding:4px 8px;
+        border-radius:999px;
+        border:1px solid rgba(35,52,86,.75);
+        background:rgba(8,12,22,.55);
+        color:var(--muted);
+        font-weight:1000;
+        font-size:12px;
+      }
+      .tag.good{color:var(--good); border-color:rgba(33,193,122,.4)}
+      .tag.bad{color:var(--bad); border-color:rgba(255,77,77,.4)}
+      .tag.warn{color:var(--warn); border-color:rgba(246,176,30,.4)}
+
+      /* Lobby role picker */
+      .rolePick{
+        display:flex;
+        gap:10px;
+        align-items:center;
+        padding:10px;
+        border-radius:14px;
+        border:1px solid rgba(35,52,86,.75);
+        background:rgba(8,12,22,.35);
+        cursor:pointer;
+        transition: transform .06s ease, border-color .15s ease, background .15s ease;
+        user-select:none;
+      }
+      .rolePick:hover{border-color:#355a99; background:rgba(17,28,51,.55)}
+      .rolePick:active{transform:scale(.99)}
+      .rolePick input{transform:scale(1.25)}
+      .roleThumb{
+        width:44px; height:44px;
+        border-radius:12px;
+        border:1px solid rgba(35,52,86,.75);
+        background-size:cover;
+        background-position:center;
+        flex:0 0 auto;
+        box-shadow: 0 14px 50px rgba(0,0,0,.35);
+      }
+      .rolePickName{font-weight:1000; font-size:13px}
+      .rolePickMeta{font-size:11px; color:var(--muted); font-weight:900; margin-top:2px}
     </style>
-</head>
-<body class="bg-slate-950 text-white min-h-screen flex flex-col items-center justify-between font-sans select-none">
-
-    <!-- ১. হোম স্ক্রিন -->
-    <div id="home-screen" class="home-bg w-full min-h-screen flex flex-col items-center justify-center p-6 text-center">
-        <h1 class="text-6xl font-black mb-2 text-slate-100 tracking-widest drop-shadow-2xl">ষড়যন্ত্র</h1>
-        <h2 class="text-2xl font-bold text-amber-500 mb-1">ষড়যন্ত্র-এ স্বাগতম!</h2>
-        <p class="text-slate-400 text-sm mb-8 italic">প্রতারণা, অনুমান এবং ভাগ্যের খেলা।</p>
-
-        <div class="w-full max-w-xs space-y-3">
-            <button onclick="showLobby('local')" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-md transition flex items-center justify-center gap-2 shadow-lg text-sm">
-                📱 পাস অ্যান্ড প্লে (এক ফোনে বন্ধুদের সাথে)
-            </button>
-            <button onclick="showLobby('online_host')" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-md transition flex items-center justify-center gap-2 shadow-lg text-sm">
-                🌐 অনলাইন ম্যাচ হোস্ট করুন (আলাদা ফোনে)
-            </button>
-            <button onclick="showLobby('online_join')" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 px-4 rounded-md transition flex items-center justify-center gap-2 shadow-lg text-sm">
-                🔗 কোড দিয়ে ম্যাচে যোগ দিন
-            </button>
+  </head>
+  <body>
+    <div class="container">
+      <div class="topbar">
+        <div class="brand">
+          <b>SHOROJONTRO</b>
+          <span>ষড়যন্ত্র</span>
         </div>
+        <div class="row">
+          <span id="net-pill" class="pill hidden">🌐 অনলাইন</span>
+          <button id="btn-home" class="btn small ghost">হোম</button>
+          <button id="btn-sound" class="btn small">🔊 সাউন্ড</button>
+          <button id="btn-rules" class="btn small">নিয়ম</button>
+        </div>
+      </div>
+
+      <!-- HOME -->
+      <section id="screen-home">
+        <div style="width:100%; max-width:640px; margin:0 auto;">
+          <div class="title">
+            <h1>ষড়যন্ত্র</h1>
+            <div class="subtitle">প্রতারণা, অনুমান এবং ভাগ্যের খেলা</div>
+            <p>২–৬ জন | শেষ পর্যন্ত যার লাইফ বাঁচবে, সে জিতবে</p>
+          </div>
+
+          <div class="grid home card" style="gap:12px;">
+            <button class="btn green" data-mode="local">🟢 পাস-এন্ড-প্লে (এক ডিভাইস)</button>
+            <button class="btn blue" data-mode="ai">🔵 AI মোড (আপনি বনাম বট)</button>
+            <button class="btn dark" data-mode="online_host">⚫ অনলাইন ম্যাচ হোস্ট</button>
+            <button class="btn gray" data-mode="online_join">🔗 কোড দিয়ে যোগ দিন</button>
+            <div class="notice">
+              নোট: অনলাইন মোডে PeerJS ব্যবহার করা হয়েছে। Render-এ Node সার্ভার (PeerJS signaling + static hosting) ডিপ্লয় করলে নির্ভরযোগ্যভাবে মাল্টিপ্লেয়ার চলবে। HTTPS/ইন্টারনেট দরকার।
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- LOBBY -->
+      <section id="screen-lobby" class="hidden">
+        <div class="card">
+          <h2 style="margin:0 0 12px 0; font-weight:1000">গেম সেটআপ</h2>
+          <div class="grid" style="grid-template-columns:1fr; gap:14px;">
+            <div class="field">
+              <label>আপনার নাম</label>
+              <input id="inp-name" placeholder="আপনার নাম লিখুন" />
+            </div>
+
+            <div id="row-count" class="field">
+              <label>মোট খেলোয়াড় সংখ্যা (২–৬)</label>
+              <select id="sel-count">
+                <option value="2">২ জন</option>
+                <option value="3" selected>৩ জন</option>
+                <option value="4">৪ জন</option>
+                <option value="5">৫ জন</option>
+                <option value="6">৬ জন</option>
+              </select>
+            </div>
+
+            <div id="name-list-panel" class="hidden panel">
+              <b>সব খেলোয়াড়ের নাম</b>
+              <div class="divider"></div>
+              <div id="name-list" class="nameGrid"></div>
+              <div class="notice" style="margin-top:10px;">
+                লোকাল/AI মোডে এক ডিভাইসে একাধিক প্লেয়ার খেললে এখান থেকে সবার নাম সেট করতে পারবেন।
+              </div>
+            </div>
+
+            <div id="ai-settings" class="hidden panel">
+              <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+                <b>AI সেটিংস</b>
+                <span class="tag warn">MVP</span>
+              </div>
+              <div class="divider"></div>
+              <div class="grid" style="grid-template-columns:1fr 1fr; gap:12px;">
+                <div class="field">
+                  <label>ব্লাফ প্রবণতা (0–100)</label>
+                  <input id="ai-bluff" type="number" min="0" max="100" value="45" />
+                </div>
+                <div class="field">
+                  <label>চ্যালেঞ্জ প্রবণতা (0–100)</label>
+                  <input id="ai-challenge" type="number" min="0" max="100" value="35" />
+                </div>
+                <div class="field">
+                  <label>আক্রমণাত্মকতা (0–100)</label>
+                  <input id="ai-aggression" type="number" min="0" max="100" value="45" />
+                </div>
+              </div>
+              <div class="notice" style="margin-top:10px;">
+                AI সহজ হিউরিস্টিক + কিছু র‍্যান্ডম সিদ্ধান্ত নেয়। (পরের ভার্সনে আরো স্মার্ট করা যাবে)
+              </div>
+            </div>
+
+            <div id="online-host" class="hidden panel">
+              <b>হোস্ট তথ্য</b>
+              <div class="divider"></div>
+              <div class="kpi">
+                <span class="pill">রুম কোড: <b id="room-code">.....</b></span>
+                <button id="btn-copy" class="btn small">কপি</button>
+              </div>
+              <div class="notice" style="margin-top:10px;">বন্ধুদেরকে রুম কোড দিন। সবাই যুক্ত হলে “খেলা শুরু” চাপুন।</div>
+            </div>
+
+            <div id="online-join" class="hidden panel">
+              <b>জয়েন করুন</b>
+              <div class="divider"></div>
+              <div class="field">
+                <label>রুম কোড</label>
+                <input id="inp-room" placeholder="যেমন: ABC123" />
+              </div>
+              <div class="notice" style="margin-top:10px;">
+                হোস্ট আপনার কাছে সংযোগ পাঠালে গেম শুরু হবে।
+              </div>
+            </div>
+
+            <div class="panel">
+              <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+                <b>ক্যারেক্টার পুল</b>
+                <span class="pill">সিলেক্টেড: <b id="role-picked-count">5</b>/5</span>
+              </div>
+              <div class="divider"></div>
+              <div class="notice">
+                গেম শুরুর আগে ১০টি ক্যারেক্টারের মধ্যে থেকে যেকোনো <b>৫টি</b> বেছে নিন। নির্বাচিত প্রতিটি কার্ড ডেকে <b>৩ কপি</b> থাকবে।
+              </div>
+              <div id="role-picker" style="margin-top:12px; display:grid; grid-template-columns:1fr 1fr; gap:10px;"></div>
+              <div class="notice" style="margin-top:10px;">
+                নোট: একবার গেম শুরু হলে এই সিলেকশন পরিবর্তন হবে না।
+              </div>
+            </div>
+
+            <div class="row" style="justify-content:flex-end">
+              <button id="btn-back" class="btn">← ফিরে যান</button>
+              <button id="btn-start" class="btn primary">খেলা শুরু 🚀</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- GAME -->
+      <section id="screen-game" class="hidden">
+        <div class="layout-game">
+          <div class="panel">
+            <div class="turnBanner">
+              টার্ন: <span id="turn-name" class="name">...</span>
+            </div>
+            <div class="kpi">
+              <span class="pill">🪙 আপনার কয়েন: <b id="my-coins">0</b></span>
+              <span class="pill">🃏 আপনার লাইফ: <b id="my-lives">0</b></span>
+              <span class="pill">🂠 ডেক: <b id="deck-left">0</b></span>
+              <span class="pill">🏷️ ট্যাক্স: <b id="tax-status">নাই</b></span>
+              <span id="mode-pill" class="pill">MODE</span>
+            </div>
+
+            <div class="divider"></div>
+            <div class="muted" style="font-weight:900;">আপনার কার্ড (গোপন)</div>
+            <div id="my-cards" class="mycards"></div>
+
+            <div class="divider"></div>
+            <div id="action-area">
+              <div class="muted" style="font-weight:900;">অ্যাকশন</div>
+              <div id="action-buttons" class="actions"></div>
+              <div id="action-hint" class="footerHint"></div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+              <b style="letter-spacing:1px">ইভেন্ট লগ</b>
+              <button id="btn-reset" class="btn small danger">রিসেট</button>
+            </div>
+            <div class="divider"></div>
+            <div id="logs" class="logs"></div>
+          </div>
+        </div>
+
+        <div class="panel" style="margin-top:14px;">
+          <b>খেলোয়াড়দের অবস্থা</b>
+          <div class="divider"></div>
+          <div id="players" class="players"></div>
+        </div>
+      </section>
     </div>
 
-    <!-- ২. লবি স্ক্রিন -->
-    <div id="lobby-screen" class="hidden bg-slate-900 p-6 rounded-xl border border-slate-800 w-full max-w-md shadow-2xl my-auto mx-4">
-        <h2 class="text-2xl font-bold text-center text-amber-500 mb-4">গেম সেটিংস</h2>
-        
-        <div class="space-y-4">
-            <div>
-                <label class="block text-xs font-semibold text-slate-400 mb-1">আপনার নাম:</label>
-                <input id="player-name" type="text" value="Rayed" class="w-full p-2.5 rounded bg-slate-800 border border-slate-700 text-center focus:outline-none focus:border-amber-500 text-sm font-bold text-white">
-            </div>
-
-            <div id="room-id-section" class="hidden bg-slate-950 p-3 rounded border border-slate-800 text-center">
-                <p class="text-xs text-slate-400">রুম আইডি (বন্ধুদের পাঠান):</p>
-                <p id="generated-room-id" class="text-xl font-mono font-bold text-amber-400 tracking-wider mt-1">তৈরি হচ্ছে...</p>
-                <input id="join-room-id" type="text" placeholder="রুম আইডি এখানে দিন" class="hidden w-full p-2 mt-2 rounded bg-slate-800 border border-slate-700 text-center font-mono text-sm text-white">
-            </div>
-
-            <div id="card-selection-box">
-                <p class="text-amber-400 font-bold text-xs mb-2">🃏 ক্যারেক্টার পুল (৫টি সিলেক্টেড):</p>
-                <div class="grid grid-cols-2 gap-1.5 text-xs bg-slate-950 p-2.5 rounded border border-slate-800">
-                    <label class="flex items-center gap-2 p-1"><input type="checkbox" class="card-checkbox" value="বীর বিক্রম" checked> বীর বিক্রম</label>
-                    <label class="flex items-center gap-2 p-1"><input type="checkbox" class="card-checkbox" value="মামদো-হमদো" checked> মামদো-হমদো</label>
-                    <label class="flex items-center gap-2 p-1"><input type="checkbox" class="card-checkbox" value="কালু ডাকাত" checked> কালু ডাকাত</label>
-                    <label class="flex items-center gap-2 p-1"><input type="checkbox" class="card-checkbox" value="পেটুকচন্দ্র" checked> পেটুকচন্দ্র</label>
-                    <label class="flex items-center gap-2 p-1"><input type="checkbox" class="card-checkbox" value="ব্রহ্মদত্ত" checked> ব্রহ্মদত্ত</label>
-                    <label class="flex items-center gap-2 p-1"><input type="checkbox" class="card-checkbox" value="জীনের বাদশাহ" checked> জীনের বাদশাহ</label>
-                </div>
-            </div>
-
-            <div id="player-count-section">
-                <label class="text-slate-400 font-semibold text-xs block mb-1">মোট খেলোয়াড় সংখ্যা:</label>
-                <select id="total-players" class="w-full p-2.5 rounded bg-slate-800 border border-slate-700 text-sm text-white">
-                    <option value="2">২ জন খেলোয়াড়</option>
-                    <option value="3" selected>৩ জন খেলোয়াড়</option>
-                    <option value="4">৪ জন খেলোয়াড়</option>
-                </select>
-            </div>
-
-            <button onclick="initiateGameEngine()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded transition text-sm">খেলা শুরু করুন 🚀</button>
-        </div>
-    </div>
-
-    <!-- ৩. মেইন গেম বোর্ড (ইউটিউব স্ক্রিনশটের হুবহু লেআউট) -->
-    <div id="game-screen" class="hidden w-full max-w-6xl mx-auto p-4 flex flex-col justify-between min-h-screen">
-        
-        <!-- টপ ব্যানার: কার টার্ন চলতাছে -->
-        <div class="text-center w-full pt-2">
-            <h1 class="text-xl font-black text-slate-500 tracking-widest uppercase">ষড়যন্ত্র অনলাইন</h1>
-            <div id="turn-banner" class="text-3xl font-extrabold text-green-400 mt-2 drop-shadow">Rayed-এর টার্ন</div>
-        </div>
-
-        <!-- মিডল এরিয়া: ২টা কার্ড এবং ডানপাশে চ্যালেঞ্জ/লাইভ অ্যাকশন প্যানেল -->
-        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 my-auto w-full items-center">
-            <div class="hidden lg:block"></div>
-
-            <!-- একটিভ প্লেয়ারের কার্ড ডিসপ্লে -->
-            <div class="col-span-1 lg:col-span-2 flex flex-col items-center justify-center">
-                <div id="my-cards" class="flex gap-6 justify-center items-center py-4 w-full"></div>
-
-                <!-- অ্যাকশন বাটন গ্রিড -->
-                <div id="action-panel" class="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-4 w-full max-w-md"></div>
-                
-                <!-- ডাইনামিক চ্যালেঞ্জ এবং রেসপন্স ইন্টারফেস (নতুন যুক্ত করা হয়েছে) -->
-                <div id="reaction-panel" class="hidden w-full max-w-md bg-amber-950/40 border border-amber-500/50 p-4 rounded-xl mt-4 text-center">
-                    <p id="reaction-text" class="text-sm font-bold text-amber-300 mb-3"></p>
-                    <div id="reaction-buttons" class="flex flex-wrap gap-2 justify-center"></div>
-                </div>
-            </div>
-
-            <!-- ডানপাশের লাইভ ইভেন্ট লগ -->
-            <div class="bg-slate-900/90 p-4 rounded-xl border border-slate-800 h-64 lg:h-80 flex flex-col justify-between shadow-2xl col-span-1">
-                <div>
-                    <h3 class="text-xs font-bold mb-2 text-amber-500 border-b border-slate-800 pb-1 uppercase">ইভেন্ট লগ</h3>
-                    <div id="game-logs" class="text-[12px] space-y-1 h-48 lg:h-64 overflow-y-auto text-emerald-400 font-mono"></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- বটম এরিয়া: চারকোনা প্লেয়ার স্ট্যাটাস গ্রিড (হুবহু স্ক্রিনশটের মতো বক্স) -->
-        <div class="w-full pb-6 border-t border-slate-900 pt-4">
-            <div id="player-status-row" class="flex flex-wrap gap-4 justify-center items-center"></div>
-        </div>
+    <!-- MODAL -->
+    <div id="modal-backdrop" class="modalBackdrop hidden">
+      <div class="modal">
+        <h3 id="modal-title">...</h3>
+        <p id="modal-text">...</p>
+        <div id="modal-extra" class="hidden"></div>
+        <div class="buttons" id="modal-buttons"></div>
+      </div>
     </div>
 
     <script>
-        const CARD_DATA = {
-            "বীর বিক্রম": { action: "৩ মুদ্রা নেওয়া", block: "নাই", image: "images/bir_bikrom.jpg" },
-            "মামদো-হমদো": { action: "২ মুদ্রা নেওয়া", block: "নাই", image: "images/mamdo_homdo.jpg" },
-            "কালু ডাকাত": { action: "২ মুদ্রা ডাকাতি", block: "ডাকাতি বন্ধ", image: "images/kalu_dakat.jpg" },
-            "পেটুকচন্দ্র": { action: "কার্ড বদল করা", block: "ডাকাতি বন্ধ", image: "images/petuk_chondro.jpg" },
-            "ব্রহ্মদত্ত": { action: "ঘাড় মটকানো (৩ কয়েন)", block: "নাই", image: "images/brohmodotto.jpg" },
-            "জীনের বাদশাহ": { action: "নাই", block: "ঘাড় মটকানো ঠেকানো", image: "images/jiner_badshah.jpg" }
+      // ============================================================
+      //  ষড়যন্ত্র (Shorojontro) - Coup-like rules from user summary
+      //  MVP: Local pass-and-play + AI + Online via PeerJS (host/client)
+      // ============================================================
+
+      // ১০টি ক্যারেক্টার (লবি থেকে যেকোনো ৫টি বেছে খেলা যাবে)
+      const ALL_ROLES = [
+        "বীর বিক্রম",
+        "মামদো-হুমদো",
+        "ব্রহ্মদত্ত",
+        "বেতাল",
+        "পেটুক চন্দ্র",
+        "অরুণ",
+        "কালো ডাকাত",
+        "ছিচকে চোর",
+        "নান্টু মিয়া",
+        "জীনের বাদশা",
+      ];
+
+      const DEFAULT_ROLE_POOL = ["বীর বিক্রম", "ব্রহ্মদত্ত", "কালো ডাকাত", "পেটুক চন্দ্র", "জীনের বাদশা"];
+
+      const ROLE_IMAGES = {
+        "বীর বিক্রম": "images/bir_bikrom.jpg",
+        "মামদো-হুমদো": "images/mamdo_homdo.jpg",
+        "ব্রহ্মদত্ত": "images/brohmodotto.jpg",
+        "বেতাল": "images/betal.jpg",
+        "পেটুক চন্দ্র": "images/petuk_chondro.jpg",
+        "অরুণ": "images/arun.jpg",
+        "কালো ডাকাত": "images/kalu_dakat.jpg",
+        "ছিচকে চোর": "images/chichke_chor.jpg",
+        "নান্টু মিয়া": "images/nantu_miah.jpg",
+        "জীনের বাদশা": "images/jiner_badshah.jpg",
+        "?": null,
+      };
+
+      // Role definitions: action types + blocking rules
+      const ROLE_INFO = {
+        "বীর বিক্রম": {
+          action: { type: "tax", label: "বীর বিক্রম: বীরত্ব ভাতা (+৩)", challengeable: true, blockable: false, cost: 0, targeted: false },
+          blocks: ["foreign_aid"],
+        },
+        "মামদো-হুমদো": {
+          action: { type: "mamdo", label: "মামদো-হুমদো: একবারে +৪ (গিফট শর্ত)", challengeable: true, blockable: false, cost: 0, targeted: false },
+          blocks: [],
+        },
+        "ব্রহ্মদত্ত": {
+          action: { type: "assassinate", label: "ব্রহ্মদত্ত: ঘাড় মটকানো (৩🪙) → ১ লাইফ", challengeable: true, blockable: true, cost: 3, targeted: true },
+          blocks: ["assassinate"],
+        },
+        "বেতাল": {
+          action: { type: "betal", label: "বেতাল: (৫🪙) → ১ লাইফ (২🪙 দিলে বাঁচবে)", challengeable: true, blockable: false, cost: 5, targeted: true },
+          blocks: [],
+        },
+        "পেটুক চন্দ্র": {
+          action: { type: "exchange", label: "পেটুক চন্দ্র: স্বাদ বদল (কার্ড এক্সচেঞ্জ)", challengeable: true, blockable: false, cost: 0, targeted: false },
+          blocks: ["steal"],
+        },
+        "অরুণ": {
+          action: { type: "arun", label: "অরুণ: গোয়েন্দাগিরি (ডেক দেখো/সোয়াপ)", challengeable: true, blockable: false, cost: 0, targeted: false },
+          blocks: [],
+        },
+        "কালো ডাকাত": {
+          action: { type: "steal", label: "কালো ডাকাত: ডাকাতি (লক্ষ্য থেকে ২🪙)", challengeable: true, blockable: true, cost: 0, targeted: true },
+          blocks: ["steal"],
+        },
+        "ছিচকে চোর": {
+          action: { type: "steal_all", label: "ছিচকে চোর: সবার থেকে ১🪙 চুরি", challengeable: true, blockable: true, cost: 0, targeted: false },
+          blocks: ["steal_all"],
+        },
+        "নান্টু মিয়া": {
+          action: { type: "set_tax", label: "নান্টু মিয়া: ট্যাক্স বসান (১🪙 ট্যাক্স)", challengeable: true, blockable: false, cost: 0, targeted: false },
+          blocks: [],
+        },
+        "জীনের বাদশা": {
+          action: null,
+          blocks: ["assassinate"],
+        },
+      };
+
+      const BASIC_ACTIONS = {
+        income: { type: "income", label: "আয় (+১) — নিরাপদ", challengeable: false, blockable: false },
+        foreign_aid: { type: "foreign_aid", label: "রপ্তানি (+২) — ব্লক হতে পারে", challengeable: false, blockable: true },
+        coup: { type: "coup", label: "হত্যা (৭🪙) → ১ লাইফ", challengeable: false, blockable: false },
+      };
+
+      // ---------- UI refs ----------
+      const $ = (id) => document.getElementById(id);
+      const screenHome = $("screen-home");
+      const screenLobby = $("screen-lobby");
+      const screenGame = $("screen-game");
+
+      const netPill = $("net-pill");
+      const btnHome = $("btn-home");
+      const btnSound = $("btn-sound");
+      const btnRules = $("btn-rules");
+      const btnBack = $("btn-back");
+      const btnStart = $("btn-start");
+      const inpName = $("inp-name");
+      const selCount = $("sel-count");
+
+      const nameListPanel = $("name-list-panel");
+      const nameListEl = $("name-list");
+
+      const aiSettings = $("ai-settings");
+      const aiBluff = $("ai-bluff");
+      const aiChallenge = $("ai-challenge");
+      const aiAggression = $("ai-aggression");
+
+      const onlineHostPanel = $("online-host");
+      const onlineJoinPanel = $("online-join");
+      const roomCodeEl = $("room-code");
+      const btnCopy = $("btn-copy");
+      const inpRoom = $("inp-room");
+      const rolePickerEl = $("role-picker");
+      const rolePickedCountEl = $("role-picked-count");
+
+      const modePill = $("mode-pill");
+      const turnName = $("turn-name");
+      const myCoins = $("my-coins");
+      const myLives = $("my-lives");
+      const deckLeft = $("deck-left");
+      const taxStatusEl = $("tax-status");
+      const myCardsEl = $("my-cards");
+      const actionButtons = $("action-buttons");
+      const actionHint = $("action-hint");
+      const logsEl = $("logs");
+      const playersEl = $("players");
+      const btnReset = $("btn-reset");
+
+      const modalBackdrop = $("modal-backdrop");
+      const modalTitle = $("modal-title");
+      const modalText = $("modal-text");
+      const modalExtra = $("modal-extra");
+      const modalButtons = $("modal-buttons");
+
+      // ---------- Mode / Online ----------
+      let mode = null; // local | ai | online_host | online_join
+      let myPlayerId = null;
+      let isHost = false;
+      let peer = null;
+      /** @type {Map<string, any>} */
+      let connections = new Map(); // host: playerId -> PeerJS conn
+      /** pending prompts for online host: promptId -> resolver */
+      let pendingPromptResolvers = new Map();
+
+      // লবি রোল সিলেকশন (১০ থেকে ৫)
+      let lobbySelectedRoles = new Set(DEFAULT_ROLE_POOL);
+      let lobbyNameCache = []; // for local/ai: array of names
+
+      // ---------- Game State (host/local authoritative) ----------
+      let G = null;
+      let lastTurnId = null;
+
+      // ------------------------------------------------------------
+      // Sound FX (WebAudio) — Android friendly
+      // ------------------------------------------------------------
+      let audioEnabled = true;
+      let audioCtx = null;
+
+      function loadSoundPref() {
+        try {
+          const v = localStorage.getItem("shorojontro_sound");
+          if (v === "0") audioEnabled = false;
+        } catch {}
+      }
+
+      function saveSoundPref() {
+        try {
+          localStorage.setItem("shorojontro_sound", audioEnabled ? "1" : "0");
+        } catch {}
+      }
+
+      function ensureAudio() {
+        try {
+          if (!audioCtx) {
+            const AC = window.AudioContext || window.webkitAudioContext;
+            if (!AC) return null;
+            audioCtx = new AC();
+          }
+          // resume if suspended (mobile)
+          if (audioCtx.state === "suspended") {
+            audioCtx.resume().catch(() => {});
+          }
+          return audioCtx;
+        } catch {
+          // Some mobile browsers can throw if audio is started without a user gesture.
+          return null;
+        }
+      }
+
+      function tone(freq, ms, kind = "sine", gain = 0.035) {
+        try {
+          if (!audioEnabled) return;
+          const ctx = ensureAudio();
+          if (!ctx) return;
+          const o = ctx.createOscillator();
+          const g = ctx.createGain();
+          o.type = kind;
+          o.frequency.value = freq;
+          g.gain.value = 0.0001;
+          o.connect(g);
+          g.connect(ctx.destination);
+          const t = ctx.currentTime;
+          g.gain.setValueAtTime(0.0001, t);
+          g.gain.exponentialRampToValueAtTime(gain, t + 0.01);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + ms / 1000);
+          o.start(t);
+          o.stop(t + ms / 1000 + 0.02);
+        } catch {
+          // Never break gameplay flow due to audio errors.
+        }
+      }
+
+      function sfx(type) {
+        try {
+          if (!audioEnabled) return;
+          if (type === "click") return tone(520, 55, "triangle", 0.03);
+          if (type === "modal") return tone(392, 85, "sine", 0.03);
+          if (type === "turn") return tone(660, 95, "triangle", 0.032);
+          if (type === "danger") return tone(170, 140, "sawtooth", 0.028);
+        } catch {
+          // ignore
+        }
+      }
+
+      function updateSoundButton() {
+        if (!btnSound) return;
+        btnSound.textContent = audioEnabled ? "🔊 সাউন্ড" : "🔇 সাউন্ড";
+      }
+
+      loadSoundPref();
+      updateSoundButton();
+
+      function uid() {
+        return Math.random().toString(16).slice(2) + "-" + Date.now().toString(16);
+      }
+      function shuffle(arr) {
+        for (let i = arr.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr;
+      }
+      function deepClone(x) {
+        return JSON.parse(JSON.stringify(x));
+      }
+
+      // ------------------------------------------------------------
+      // Tax system (নান্টু মিয়া)
+      // ------------------------------------------------------------
+      function getTaxCostForRole(roleName) {
+        if (!G || !G.tax) return 0;
+        return G.tax.role === roleName ? 1 : 0;
+      }
+
+      function payRoleTaxIfNeeded(actorId, roleName) {
+        if (!G || !G.tax) return true;
+        if (G.tax.role !== roleName) return true;
+        const actor = getPlayer(actorId);
+        const collector = getPlayer(G.tax.collectorId);
+        if (!actor) return true;
+        if (actor.coins < 1) {
+          log(`⚠️ ${roleName} অ্যাকশন খেলতে ১ কয়েন ট্যাক্স দরকার, কিন্তু ${actor.name}-এর কয়েন নেই।`);
+          return false;
+        }
+        actor.coins -= 1;
+        if (collector) collector.coins += 1;
+        log(`🏷️ ট্যাক্স: ${actor.name} ১ কয়েন দিয়েছে (${collector ? collector.name : "?"}) কে।`);
+        return true;
+      }
+
+      function refundPendingEscrow(reasonText) {
+        if (!G || !G.pending || !G.pending.escrow) return;
+        const p = G.pending;
+        const actor = getPlayer(p.actorId);
+        const amount = p.escrow.amount || 0;
+        if (actor && amount > 0) {
+          actor.coins += amount;
+          log(`↩️ ${reasonText || "এস্ক্রো ফেরত"}: ${amount} কয়েন ${actor.name}-এর কাছে ফেরত গেল।`);
+        }
+        p.escrow = null;
+      }
+
+      function roleInCurrentPool(roleName) {
+        const pool = (G?.settings?.rolesPool && G.settings.rolesPool.length ? G.settings.rolesPool : DEFAULT_ROLE_POOL);
+        return pool.includes(roleName);
+      }
+
+      function alivePlayers() {
+        return G.players.filter((p) => p.hand.length > 0);
+      }
+      function getPlayer(pid) {
+        return G.players.find((p) => p.id === pid);
+      }
+      function nextAlivePlayerId(afterPlayerId) {
+        const order = G.players.map((p) => p.id);
+        let idx = order.indexOf(afterPlayerId);
+        for (let k = 0; k < order.length; k++) {
+          idx = (idx + 1) % order.length;
+          const p = getPlayer(order[idx]);
+          if (p && p.hand.length > 0) return p.id;
+        }
+        return afterPlayerId;
+      }
+
+      // ------------------------------------------------------------
+      // Modal helper (local UI, and online join prompt receiver)
+      // ------------------------------------------------------------
+      function hideModal() {
+        modalBackdrop.classList.add("hidden");
+        modalExtra.classList.add("hidden");
+        modalExtra.innerHTML = "";
+        modalButtons.innerHTML = "";
+      }
+
+      function showModal({ title, text, buttons, extraHTML }) {
+        modalTitle.textContent = title || "";
+        modalText.textContent = text || "";
+        if (extraHTML) {
+          modalExtra.classList.remove("hidden");
+          modalExtra.innerHTML = extraHTML;
+        } else {
+          modalExtra.classList.add("hidden");
+          modalExtra.innerHTML = "";
+        }
+        modalButtons.innerHTML = "";
+        modalBackdrop.classList.remove("hidden");
+        // SFX: modal open
+        const hasDanger = (buttons || []).some((b) => b && b.kind === "danger");
+        sfx(hasDanger ? "danger" : "modal");
+        return new Promise((resolve) => {
+          for (const b of buttons || []) {
+            const btn = document.createElement("button");
+            btn.className = "btn " + (b.kind || "");
+            btn.textContent = b.label;
+            btn.onclick = () => {
+              hideModal();
+              resolve(b.value);
+            };
+            modalButtons.appendChild(btn);
+          }
+        });
+      }
+
+      // ------------------------------------------------------------
+      // Lobby: ১০ থেকে ৫টি রোল সিলেক্ট
+      // ------------------------------------------------------------
+      function roleMetaText(roleName) {
+        const info = ROLE_INFO[roleName];
+        const action = info?.action?.label ? info.action.label.replace(roleName + ":", "").trim() : "অ্যাকশন নেই";
+        const blocks = (info?.blocks || [])
+          .map((b) =>
+            b === "foreign_aid"
+              ? "রপ্তানি ব্লক"
+              : b === "steal"
+                ? "ডাকাতি ব্লক"
+                : b === "assassinate"
+                  ? "ঘাড় মটকানো ব্লক"
+                  : b === "steal_all"
+                    ? "চুরি ব্লক"
+                    : b
+          )
+          .join(", ");
+        return `${action}${blocks ? " • 🛡️ " + blocks : ""}`;
+      }
+
+      function updateRolePickCount() {
+        if (!rolePickedCountEl) return;
+        rolePickedCountEl.textContent = String(lobbySelectedRoles.size);
+      }
+
+      function renderRolePicker() {
+        if (!rolePickerEl) return;
+        const isJoin = mode === "online_join";
+        rolePickerEl.innerHTML = "";
+
+        if (isJoin) {
+          rolePickerEl.innerHTML = `<div class="notice">অনলাইন জয়েন করলে হোস্টই ক্যারেক্টার পুল নির্বাচন করবে।</div>`;
+          updateRolePickCount();
+          return;
+        }
+
+        for (const role of ALL_ROLES) {
+          const id = "role_" + role;
+          const checked = lobbySelectedRoles.has(role);
+          const img = ROLE_IMAGES[role];
+
+          const wrap = document.createElement("label");
+          wrap.className = "rolePick";
+          wrap.setAttribute("for", id);
+
+          const cb = document.createElement("input");
+          cb.type = "checkbox";
+          cb.id = id;
+          cb.checked = checked;
+
+          cb.onchange = () => {
+            if (cb.checked) {
+              if (lobbySelectedRoles.size >= 5) {
+                cb.checked = false;
+                alert("একসাথে সর্বোচ্চ ৫টি ক্যারেক্টার সিলেক্ট করা যাবে।");
+                return;
+              }
+              lobbySelectedRoles.add(role);
+            } else {
+              lobbySelectedRoles.delete(role);
+            }
+            updateRolePickCount();
+          };
+
+          const thumb = document.createElement("div");
+          thumb.className = "roleThumb";
+          if (img) thumb.style.backgroundImage = `url('${img}')`;
+
+          const infoBox = document.createElement("div");
+          infoBox.style.display = "flex";
+          infoBox.style.flexDirection = "column";
+          infoBox.style.gap = "2px";
+
+          const nm = document.createElement("div");
+          nm.className = "rolePickName";
+          nm.textContent = role;
+          const meta = document.createElement("div");
+          meta.className = "rolePickMeta";
+          meta.textContent = roleMetaText(role);
+
+          infoBox.appendChild(nm);
+          infoBox.appendChild(meta);
+
+          wrap.appendChild(cb);
+          wrap.appendChild(thumb);
+          wrap.appendChild(infoBox);
+
+          rolePickerEl.appendChild(wrap);
+        }
+
+        updateRolePickCount();
+      }
+
+      // ------------------------------------------------------------
+      // Lobby: multi-name inputs (local/AI only)
+      // ------------------------------------------------------------
+      function normalizeName(s, fallback) {
+        const v = (s || "").trim();
+        return (v ? v : fallback).slice(0, 18);
+      }
+
+      function ensureLobbyNameCache(total) {
+        const t = Math.max(2, Math.min(6, Number(total) || 3));
+        // keep existing typed names if possible
+        const next = new Array(t).fill("");
+        for (let i = 0; i < t; i++) next[i] = lobbyNameCache[i] || "";
+        // sync player-1 with inpName
+        next[0] = inpName.value || next[0] || "Player 1";
+        for (let i = 1; i < t; i++) {
+          if (!next[i]) next[i] = `Player ${i + 1}`;
+        }
+        lobbyNameCache = next;
+      }
+
+      function renderLobbyNames() {
+        if (!nameListPanel || !nameListEl) return;
+        const show = mode === "local" || mode === "ai";
+        nameListPanel.classList.toggle("hidden", !show);
+        if (!show) return;
+
+        const total = Number(selCount.value || 3);
+        ensureLobbyNameCache(total);
+
+        nameListEl.innerHTML = "";
+        for (let i = 0; i < lobbyNameCache.length; i++) {
+          const wrap = document.createElement("div");
+          wrap.className = "field";
+
+          const lab = document.createElement("label");
+          lab.textContent = i === 0 ? "প্লেয়ার ১ (আপনি)" : `প্লেয়ার ${i + 1}${mode === "ai" ? " (AI)" : ""}`;
+
+          const inp = document.createElement("input");
+          inp.value = lobbyNameCache[i] || "";
+          inp.placeholder = i === 0 ? "আপনার নাম" : `Player ${i + 1}`;
+          inp.maxLength = 18;
+          inp.oninput = () => {
+            lobbyNameCache[i] = inp.value;
+            if (i === 0) inpName.value = inp.value; // keep in sync
+          };
+
+          wrap.appendChild(lab);
+          wrap.appendChild(inp);
+          nameListEl.appendChild(wrap);
+        }
+      }
+
+      function getLobbyNames(total) {
+        ensureLobbyNameCache(total);
+        // final sanitize
+        const names = lobbyNameCache.map((n, i) => normalizeName(n, `Player ${i + 1}`));
+        // sync again with inpName (source of truth for player-1)
+        names[0] = normalizeName(inpName.value, "Player 1");
+        return names;
+      }
+
+      // Local privacy helper: "Pass device" confirmation
+      async function ensureLocalViewer(playerId) {
+        if (mode !== "local") return;
+        if (myPlayerId === playerId) return; // viewer already
+        const p = getPlayer(playerId);
+        await showModal({
+          title: "ডিভাইস পাস করুন",
+          text: `এখন ${p.name}-এর ইনপুট দরকার। ডিভাইসটি ${p.name}-কে দিন এবং “আমি প্রস্তুত” চাপুন।`,
+          buttons: [{ label: "আমি প্রস্তুত", value: true, kind: "primary" }],
+        });
+        myPlayerId = playerId;
+      }
+
+      // ------------------------------------------------------------
+      // Logging + UI render
+      // ------------------------------------------------------------
+      function log(msg) {
+        G.log.push(msg);
+        if (G.log.length > 120) G.log.shift();
+        broadcastState();
+        render();
+      }
+
+      function roleCardHTML(role, revealed) {
+        const info = ROLE_INFO[role] || null;
+        const img = ROLE_IMAGES[role] || null;
+        const blocks = (info?.blocks || [])
+          .map((b) =>
+            b === "foreign_aid"
+              ? "রপ্তানি ব্লক"
+              : b === "steal"
+                ? "ডাকাতি ব্লক"
+                : b === "assassinate"
+                  ? "ঘাড় মটকানো ব্লক"
+                  : b === "steal_all"
+                    ? "চুরি ব্লক"
+                  : b
+          )
+          .join(", ");
+        const actionLabel = info?.action?.label || "অ্যাকশন নেই";
+        const title = role === "?" ? "গোপন কার্ড" : role;
+        return `
+          <div class="roleCard" style="${[
+            revealed ? "opacity:.55; filter:saturate(.7);" : "",
+            img ? `background-image:
+              radial-gradient(180px 120px at 30% 20%, rgba(246,176,30,.16), transparent 70%),
+              radial-gradient(220px 160px at 70% 65%, rgba(124,92,255,.14), transparent 72%),
+              linear-gradient(180deg, rgba(8,12,22,.40), rgba(8,12,22,.78)),
+              url('${img}'); background-size: cover; background-position: center;` : ""
+          ].join(" ")}">
+            <div class="roleName">${title}</div>
+            <div class="roleSmall">⚔️ ${role === "?" ? "অজানা" : actionLabel}</div>
+            <div class="roleSmall">🛡️ ${role === "?" ? "অজানা" : (blocks ? blocks : "ব্লক নেই")}</div>
+          </div>
+        `;
+      }
+
+      function render() {
+        // background per screen (match reference screenshots)
+        try {
+          if (mode === null) {
+            document.documentElement.style.setProperty("--bg-image", "url('assets/home_bg.jpg')");
+          } else if (!G) {
+            document.documentElement.style.setProperty("--bg-image", "url('assets/home_bg.jpg')");
+          } else {
+            document.documentElement.style.setProperty("--bg-image", "url('assets/game_bg.jpg')");
+          }
+        } catch {}
+
+        // screen toggles
+        screenHome.classList.toggle("hidden", mode !== null);
+        screenLobby.classList.toggle("hidden", mode === null || G !== null);
+        screenGame.classList.toggle("hidden", !G);
+
+        // lobby conditional panels
+        aiSettings.classList.toggle("hidden", mode !== "ai");
+        onlineHostPanel.classList.toggle("hidden", mode !== "online_host");
+        onlineJoinPanel.classList.toggle("hidden", mode !== "online_join");
+        $("row-count").classList.toggle("hidden", mode === "online_join"); // join side doesn't need count
+        renderLobbyNames();
+        // role picker render (only when in lobby)
+        if (mode !== null && G === null) renderRolePicker();
+
+        netPill.classList.toggle("hidden", !(mode && mode.startsWith("online")));
+        if (mode && mode.startsWith("online")) netPill.textContent = "🌐 অনলাইন";
+
+        if (!G) return;
+
+        // header stats
+        const current = getPlayer(G.currentPlayerId);
+        // SFX when turn changes (only when game exists)
+        if (current?.id && lastTurnId && current.id !== lastTurnId) {
+          sfx("turn");
+        }
+        if (current?.id) lastTurnId = current.id;
+        turnName.textContent = current?.name || "-";
+        modePill.textContent =
+          mode === "local"
+            ? "📱 Local"
+            : mode === "ai"
+              ? "🤖 AI"
+              : isHost
+                ? "🌐 Online Host"
+                : "🌐 Online Join";
+
+        const me = getPlayer(myPlayerId);
+        myCoins.textContent = me ? me.coins : "0";
+        myLives.textContent = me ? me.hand.length : "0";
+        deckLeft.textContent = G.deck.length;
+        if (taxStatusEl) {
+          if (G.tax && G.tax.role && G.tax.collectorId) {
+            const c = getPlayer(G.tax.collectorId);
+            taxStatusEl.textContent = `${G.tax.role} → ${c ? c.name : "?"}`;
+          } else {
+            taxStatusEl.textContent = "নাই";
+          }
+        }
+
+        // my cards (join client sees only its own; local sees current viewer)
+        const viewPlayer = getPlayer(myPlayerId);
+        const viewHand = viewPlayer ? viewPlayer.hand : [];
+        const viewRevealed = viewPlayer ? viewPlayer.revealed : [];
+        myCardsEl.innerHTML =
+          viewHand.map((r) => roleCardHTML(r, false)).join("") +
+          viewRevealed.map((r) => roleCardHTML(r, true)).join("");
+
+        // actions
+        const canAct = G.awaitingInput && G.awaitingInput.playerId === myPlayerId;
+        actionButtons.innerHTML = "";
+        actionHint.textContent = "";
+        if (!canAct) {
+          actionHint.textContent =
+            current?.id === myPlayerId
+              ? "অপেক্ষা করুন… (অন্যরা চ্যালেঞ্জ/ব্লক করছে)"
+              : `${current?.name}-এর টার্ন চলছে…`;
+        } else {
+          actionHint.textContent = G.awaitingInput.hint || "";
+          for (const opt of G.awaitingInput.options) {
+            const btn = document.createElement("button");
+            btn.className = "btn " + (opt.kind || "");
+            btn.textContent = opt.label;
+            btn.onclick = () => sendInput(opt.value);
+            actionButtons.appendChild(btn);
+          }
+        }
+
+        // logs
+        logsEl.innerHTML = G.log
+          .slice()
+          .reverse()
+          .map((l) => `<div class="logline">${l}</div>`)
+          .join("");
+
+        // players row
+        playersEl.innerHTML = G.players
+          .map((p) => {
+            const isCur = p.id === G.currentPlayerId;
+            const dead = p.hand.length === 0;
+            const livesHTML =
+              new Array(p.hand.length).fill(0).map(() => `<span class="life">?</span>`).join("") +
+              p.revealed.map((r) => `<span class="life revealed">${r}</span>`).join("");
+            return `
+              <div class="pbox ${isCur ? "current" : ""} ${dead ? "dead" : ""}">
+                <div class="pname">${p.name}${p.isAI ? " 🤖" : ""}</div>
+                <div class="pcoins">🪙 ${p.coins}</div>
+                <div class="plives">${livesHTML}</div>
+              </div>
+            `;
+          })
+          .join("");
+      }
+
+      // ------------------------------------------------------------
+      // Online networking (PeerJS)
+      // ------------------------------------------------------------
+      function peerClientConfig() {
+        // Works when served from the same origin (e.g., Render).
+        const secure = location.protocol === "https:";
+        const port = location.port ? Number(location.port) : secure ? 443 : 80;
+        return {
+          host: location.hostname,
+          port,
+          path: "/peerjs",
+          secure,
+        };
+      }
+
+      function safeUpperCode(n = 6) {
+        const chars = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+        let s = "";
+        for (let i = 0; i < n; i++) s += chars[Math.floor(Math.random() * chars.length)];
+        return s;
+      }
+
+      async function setupOnlineHost(roomCode) {
+        isHost = true;
+        $("net-pill").classList.remove("hidden");
+        roomCodeEl.textContent = roomCode;
+
+        // Load PeerJS dynamically (so local/ai doesn't depend on it)
+        await loadPeerJs();
+        peer = new Peer(roomCode, peerClientConfig());
+
+        peer.on("open", () => {
+          logToConsole("Peer open (host): " + roomCode);
+        });
+        peer.on("connection", (conn) => {
+          const tempId = uid();
+          connections.set(tempId, conn);
+          conn.on("data", (data) => onHostData(tempId, data));
+          conn.on("close", () => {
+            connections.delete(tempId);
+            logToConsole("client disconnected");
+          });
+        });
+        peer.on("error", (e) => logToConsole("peer error: " + e));
+      }
+
+      async function setupOnlineJoin(roomCode) {
+        isHost = false;
+        $("net-pill").classList.remove("hidden");
+        await loadPeerJs();
+        peer = new Peer(undefined, peerClientConfig());
+        await new Promise((resolve) => peer.on("open", resolve));
+        const conn = peer.connect(roomCode);
+        conn.on("open", () => {
+          logToConsole("connected to host");
+          conn.send({ type: "hello", name: inpName.value.trim() || "Player" });
+        });
+        conn.on("data", (data) => onClientData(conn, data));
+        conn.on("error", (e) => logToConsole("conn error: " + e));
+        peer.on("error", (e) => logToConsole("peer error: " + e));
+        connections.set("host", conn);
+      }
+
+      function logToConsole(s) {
+        // keep silent in UI; useful for debugging
+        console.log("[shorojontro]", s);
+      }
+
+      function loadPeerJs() {
+        return new Promise((resolve) => {
+          if (window.Peer) return resolve();
+          const script = document.createElement("script");
+          script.src = "https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js";
+          script.onload = () => resolve();
+          script.onerror = () => resolve(); // don't crash
+          document.head.appendChild(script);
+        });
+      }
+
+      function onHostData(tempConnId, data) {
+        if (!data || typeof data !== "object") return;
+        if (data.type === "hello") {
+          // assign this connection to a real player after game started
+          // We'll store on connection meta: desired name.
+          connections.get(tempConnId)._desiredName = data.name || "Player";
+          // ack
+          connections.get(tempConnId).send({ type: "hello_ack" });
+          return;
+        }
+        if (data.type === "input") {
+          // player input for awaitingInput
+          if (!G || !G.awaitingInput) return;
+          if (data.playerId && data.playerId !== G.awaitingInput.playerId) return;
+          if (data.playerId) {
+            // OK
+          }
+          // For safety: only accept from the right connection
+          const expectedPid = G.awaitingInput.playerId;
+          const expectedConn = [...connections.entries()].find(([, c]) => c._playerId === expectedPid)?.[1];
+          if (expectedConn && expectedConn !== connections.get(tempConnId)) return;
+          receiveInput(data.value);
+          return;
+        }
+        if (data.type === "prompt_response") {
+          const r = pendingPromptResolvers.get(data.promptId);
+          if (r) {
+            pendingPromptResolvers.delete(data.promptId);
+            r(data.value);
+          }
+        }
+      }
+
+      function onClientData(conn, data) {
+        if (!data || typeof data !== "object") return;
+        if (data.type === "hello_ack") return;
+        if (data.type === "assign") {
+          myPlayerId = data.playerId;
+          render();
+          return;
+        }
+        if (data.type === "state") {
+          G = data.state;
+          render();
+          return;
+        }
+      }
+
+      function broadcastState() {
+        if (!mode || !mode.startsWith("online")) return;
+        if (!isHost) return;
+        // assign connection -> player if not assigned (first time game started)
+        // We do it lazily when game exists.
+        if (!G) return;
+        for (const [tempId, conn] of connections.entries()) {
+          if (conn._playerId) continue;
+          // Assign to the next unassigned non-AI player excluding host
+          const unassigned = G.players.filter((p) => !p.isAI && p.id !== myPlayerId);
+          const already = new Set([...connections.values()].map((c) => c._playerId).filter(Boolean));
+          const candidate = unassigned.find((p) => !already.has(p.id));
+          if (!candidate) continue;
+          conn._playerId = candidate.id;
+          // Optionally rename player using desired name
+          const desired = conn._desiredName;
+          if (desired && desired.trim()) {
+            candidate.name = desired.trim().slice(0, 18);
+          }
+          conn.send({ type: "assign", playerId: candidate.id });
+        }
+
+        // send per-player sanitized state
+        for (const [, conn] of connections.entries()) {
+          const pid = conn._playerId;
+          if (!pid) continue;
+          conn.send({ type: "state", state: sanitizeStateFor(pid) });
+        }
+        // host also renders its own
+        render();
+      }
+
+      function sanitizeStateFor(viewPid) {
+        const S = deepClone(G);
+        // hide others' hands
+        for (const p of S.players) {
+          if (p.id !== viewPid) p.hand = new Array(p.hand.length).fill("?");
+        }
+        // awaitingInput is only for the viewPid
+        if (S.awaitingInput && S.awaitingInput.playerId !== viewPid) {
+          S.awaitingInput = null;
+        }
+        return S;
+      }
+
+      // Send input from UI to host/local engine
+      function sendInput(value) {
+        if (mode && mode.startsWith("online") && !isHost) {
+          const conn = connections.get("host");
+          if (conn && conn.open) {
+            conn.send({ type: "input", playerId: myPlayerId, value });
+          }
+          return;
+        }
+        receiveInput(value);
+      }
+
+      // ------------------------------------------------------------
+      // Game Engine (authoritative: local/ai, or online host)
+      // ------------------------------------------------------------
+      function initNewGame({ totalPlayers, withAI, aiParams, rolesPool, names }) {
+        const nameList = Array.isArray(names) ? names : null;
+        const meName = normalizeName(inpName.value, "Player 1");
+        const players = [];
+        const humanCount = mode === "online_host" ? totalPlayers : totalPlayers;
+
+        // Host/local player always human
+        const hostPlayer = {
+          id: uid(),
+          name: nameList ? normalizeName(nameList[0], meName) : meName,
+          isAI: false,
+          coins: 2,
+          hand: [],
+          revealed: [],
+        };
+        myPlayerId = hostPlayer.id;
+        players.push(hostPlayer);
+
+        // Create others
+        const defaultNames = ["Saim", "Nafi", "Pranto", "Saba", "Rashed"];
+        for (let i = 1; i < totalPlayers; i++) {
+          const isAIPlayer = withAI ? true : false;
+          players.push({
+            id: uid(),
+            name: nameList
+              ? normalizeName(nameList[i], (isAIPlayer ? "AI " : "Player ") + (defaultNames[i - 1] || String(i + 1)))
+              : (isAIPlayer ? "AI " : "Player ") + (defaultNames[i - 1] || String(i + 1)),
+            isAI: isAIPlayer,
+            coins: 2,
+            hand: [],
+            revealed: [],
+          });
+        }
+
+        const pool = (rolesPool && rolesPool.length === 5 ? rolesPool : DEFAULT_ROLE_POOL).slice();
+        const deck = shuffle(pool.flatMap((r) => [r, r, r]));
+        // deal
+        for (const p of players) {
+          p.hand.push(deck.pop(), deck.pop());
+        }
+
+        G = {
+          version: 1,
+          settings: {
+            ai: aiParams || { bluff: 45, challenge: 35, aggression: 45 },
+            rolesPool: pool,
+          },
+          players,
+          deck,
+          currentPlayerId: players[0].id,
+          awaitingInput: null, // { playerId, kind, hint, options:[{label,value,kind}] }
+          pending: null, // action context
+          tax: null, // { role: string, collectorId: string }
+          log: ["📢 খেলা শুরু হয়েছে!", "🃏 সবাই ২টি করে গোপন কার্ড ও ২টি করে কয়েন পেয়েছে।"],
         };
 
-        let mode = 'local';
-        let state = { players: [], deck: [], currentTurn: 0, logs: [], selectedCards: [], currentAction: null };
+        broadcastState();
+        render();
 
-        function showLobby(m) {
-            mode = m;
-            document.getElementById('home-screen').classList.add('hidden');
-            document.getElementById('lobby-screen').classList.remove('hidden');
-            if(mode === 'online_host') {
-                document.getElementById('room-id-section').classList.remove('hidden');
-                document.getElementById('generated-room-id').innerText = Math.floor(100000 + Math.random() * 900000);
-            } else if (mode === 'online_join') {
-                document.getElementById('room-id-section').classList.remove('hidden');
-                document.getElementById('join-room-id').classList.remove('hidden');
-                document.getElementById('generated-room-id').classList.add('hidden');
-                document.getElementById('card-selection-box').classList.add('hidden');
-                document.getElementById('player-count-section').classList.add('hidden');
+        // start turn loop
+        if (isHost || mode === "local" || mode === "ai") {
+          tick();
+        }
+      }
+
+      function checkWinner() {
+        const alive = alivePlayers();
+        if (alive.length === 1) {
+          log(`🏆 বিজয়ী: ${alive[0].name} (শেষ পর্যন্ত টিকে আছে!)`);
+          G.awaitingInput = {
+            playerId: myPlayerId,
+            hint: "গেম শেষ। চাইলে রিসেট করে আবার খেলুন।",
+            options: [{ label: "রিসেট", value: { t: "reset" }, kind: "danger" }],
+          };
+          broadcastState();
+          return true;
+        }
+        return false;
+      }
+
+      function setAwaiting(playerId, hint, options) {
+        G.awaitingInput = { playerId, hint, options };
+        broadcastState();
+        render();
+
+        // লোকাল (পাস-এন্ড-প্লে) মোডে: যাঁর ইনপুট দরকার, ডিভাইসটা তার কাছে পাস করাতে সাহায্য করি।
+        if (mode === "local" && myPlayerId !== playerId) {
+          ensureLocalViewer(playerId).then(() => {
+            broadcastState();
+            render();
+          });
+        }
+
+        // AI মোডে: যেকোনো AI প্লেয়ারের প্রম্পট এলে সাথে সাথে রেসপন্স করাও।
+        if (mode === "ai") {
+          const pl = getPlayer(playerId);
+          if (pl?.isAI) setTimeout(() => aiRespond(playerId), 450);
+        }
+      }
+
+      function clearAwaiting() {
+        G.awaitingInput = null;
+        broadcastState();
+        render();
+      }
+
+      function receiveInput(val) {
+        if (!G) return;
+        if (val && val.t === "reset") {
+          resetAll();
+          return;
+        }
+        // Host validates input ownership
+        if (G.awaitingInput && val && G.awaitingInput.playerId !== myPlayerId && mode === "local") {
+          // local: myPlayerId is current viewer. ok.
+        }
+        // route by pending context
+        if (!G.pending) {
+          if (val && val.t === "action") return onChooseAction(val);
+          return;
+        }
+        const p = G.pending;
+        if (p.stage === "choose_target") return onChooseTarget(val);
+        if (p.stage === "challenge_offer") return onChallengeResponse(val);
+        if (p.stage === "block_offer") return onBlockResponse(val);
+        if (p.stage === "block_challenge_decision") return onBlockChallengeDecision(val);
+        if (p.stage === "reveal") return onRevealChoice(val);
+        if (p.stage === "exchange_pick") return onExchangePick(val);
+        if (p.stage === "mamdo_claims") return onMamdoClaim(val);
+        if (p.stage === "steal_all_block") return onStealAllBlock(val);
+        if (p.stage === "arun_pay") return onArunPayChoice(val);
+        if (p.stage === "tax_pick") return onTaxPick(val);
+        if (p.stage === "betal_bribe") return onBetalBribe(val);
+      }
+
+      function tick() {
+        if (!G) return;
+        if (checkWinner()) return;
+        const cur = getPlayer(G.currentPlayerId);
+        if (!cur || cur.hand.length === 0) {
+          G.currentPlayerId = nextAlivePlayerId(G.currentPlayerId);
+          return tick();
+        }
+
+        // If awaiting input, do nothing
+        if (G.awaitingInput) {
+          // AI auto-response
+          if (cur.isAI && G.awaitingInput.playerId === cur.id) {
+            setTimeout(() => aiRespond(cur.id), 400);
+          }
+          return;
+        }
+
+        // Start of turn: forced coup at 10+
+        if (cur.coins >= 10) {
+          log(`⚠️ ${cur.name}-এর কাছে ${cur.coins} কয়েন! নিয়ম অনুযায়ী বাধ্যতামূলক “হত্যা” করতে হবে।`);
+          G.pending = {
+            stage: "choose_target",
+            actorId: cur.id,
+            action: { type: "coup", label: BASIC_ACTIONS.coup.label, challengeable: false, blockable: false },
+          };
+          askTarget(cur.id, "হত্যা (৭🪙)", "কার ওপর হত্যা করবেন?");
+          return;
+        }
+
+        // Otherwise ask action
+        askAction(cur.id);
+      }
+
+      function askAction(actorId) {
+        const actor = getPlayer(actorId);
+        const opts = [];
+
+        opts.push({ label: BASIC_ACTIONS.income.label, value: { t: "action", a: "income" }, kind: "" });
+        opts.push({ label: BASIC_ACTIONS.foreign_aid.label, value: { t: "action", a: "foreign_aid" }, kind: "" });
+
+        // হত্যা/কুপ (৭ কয়েন): অপশনটা সবসময় দেখাব, তবে কয়েন কম হলে সিলেক্ট করলে টার্ন নষ্ট না করে আবার অ্যাকশন বাছাই করতে দেবে।
+        const coupLabel = actor.coins >= 7 ? BASIC_ACTIONS.coup.label : `${BASIC_ACTIONS.coup.label} — (৭ কয়েন লাগবে)`;
+        opts.push({ label: coupLabel, value: { t: "action", a: "coup" }, kind: actor.coins >= 7 ? "danger" : "" });
+
+        // Role actions (লবি থেকে সিলেক্টেড ৫টি রোল)
+        const pool = (G?.settings?.rolesPool && G.settings.rolesPool.length ? G.settings.rolesPool : DEFAULT_ROLE_POOL).slice();
+        for (const roleName of pool) {
+          const info = ROLE_INFO[roleName];
+          const act = info?.action;
+          if (!act) continue;
+
+          const taxCost = getTaxCostForRole(roleName);
+          const need = (act.cost || 0) + taxCost;
+
+          // কয়েন না থাকলে: ওই রোলের অ্যাকশন অপশন দেখাব না (আপনার চাহিদা অনুযায়ী)।
+          if (need > 0 && actor.coins < need) continue;
+
+          let label = act.label;
+          if (taxCost) label += " + ট্যাক্স(১🪙)";
+
+          const kind =
+            act.type === "assassinate" || act.type === "betal" ? "danger" : act.type === "tax" || act.type === "set_tax" ? "warn" : "";
+          opts.push({ label, value: { t: "action", a: act.type, role: roleName }, kind });
+        }
+
+        setAwaiting(actorId, "আপনার অ্যাকশন নির্বাচন করুন।", opts);
+      }
+
+      function onChooseAction(v) {
+        const cur = getPlayer(G.currentPlayerId);
+        if (!cur) return;
+        if (G.awaitingInput && G.awaitingInput.playerId !== cur.id) return;
+        clearAwaiting();
+
+        const a = v.a;
+        if (a === "income") {
+          cur.coins += 1;
+          log(`🪙 ${cur.name} নিরাপদে ১টি কয়েন সংগ্রহ করেছে।`);
+          endTurn();
+          return;
+        }
+
+        if (a === "foreign_aid") {
+          G.pending = {
+            stage: "block_offer",
+            actorId: cur.id,
+            action: BASIC_ACTIONS.foreign_aid,
+            claimedRole: null,
+            targetId: null,
+            challengeQueue: [],
+            blockQueue: buildForeignAidBlockQueue(cur.id),
+            block: null,
+          };
+          log(`💸 ${cur.name} রপ্তানি/বিদেশী সাহায্য নিতে যাচ্ছে (+২)।`);
+          offerNextBlock();
+          return;
+        }
+
+        if (a === "coup") {
+          if (cur.coins < 7) {
+            // (সেফটি) কয়েন না থাকলে টার্ন নষ্ট না করে আবার অ্যাকশন সিলেক্ট করতে দিই।
+            log(`⚠️ হত্যা/কুপ করতে ${cur.name}-এর ৭ কয়েন লাগবে — এই অ্যাকশন খেলতে পারবেন না।`);
+            askAction(cur.id);
+            return;
+          }
+          G.pending = {
+            stage: "choose_target",
+            actorId: cur.id,
+            action: BASIC_ACTIONS.coup,
+          };
+          askTarget(cur.id, "হত্যা (৭🪙)", "কার ওপর হত্যা করবেন?");
+          return;
+        }
+
+        // role actions (claim)
+        const claimedRole = v.role || null;
+        if (!claimedRole || !ROLE_INFO[claimedRole]?.action) {
+          log("⚠️ অজানা অ্যাকশন।");
+          askAction(cur.id);
+          return;
+        }
+
+        // ট্যাক্স সিস্টেম: ট্যাক্সড রোলের অ্যাকশন খেলতে হলে আগে ১ কয়েন ট্যাক্স দিতে হবে
+        if (!payRoleTaxIfNeeded(cur.id, claimedRole)) {
+          // coin না থাকলে payRoleTaxIfNeeded ভেতরেই লগ দেয়
+          askAction(cur.id);
+          return;
+        }
+
+        const actionObj = ROLE_INFO[claimedRole].action;
+
+        // (সেফটি) costful action এ কয়েন না থাকলে টার্ন নষ্ট না করে আবার বাছাই
+        const need = (actionObj.cost || 0);
+        if ((a === "assassinate" || a === "betal") && cur.coins < need) {
+          log(`⚠️ ${actionObj.label} খেলতে পর্যাপ্ত কয়েন নেই।`);
+          askAction(cur.id);
+          return;
+        }
+
+        G.pending = {
+          stage: "choose_target",
+          actorId: cur.id,
+          action: actionObj,
+          claimedRole,
+          targetId: null,
+          challengeQueue: buildChallengeQueue(cur.id),
+          blockQueue: [],
+          block: null,
+          escrow: null, // cost escrow (কিছু অ্যাকশনের জন্য)
+        };
+
+        if (a === "tax") {
+          log(`🎭 ${cur.name} দাবি করেছে সে “বীর বিক্রম” এবং ৩ কয়েন নিতে যাচ্ছে।`);
+          startChallengeOffer();
+          return;
+        }
+        if (a === "mamdo") {
+          log(`🎭 ${cur.name} দাবি করেছে সে “মামদো-হুমদো” এবং ৪ কয়েন নিতে যাচ্ছে।`);
+          startChallengeOffer();
+          return;
+        }
+        if (a === "exchange") {
+          log(`🎭 ${cur.name} দাবি করেছে সে “পেটুক চন্দ্র” এবং কার্ড এক্সচেঞ্জ করবে।`);
+          startChallengeOffer();
+          return;
+        }
+        if (a === "arun") {
+          log(`🎭 ${cur.name} দাবি করেছে সে “অরুণ” এবং ডেক দেখবে/সোয়াপ করবে।`);
+          startChallengeOffer();
+          return;
+        }
+        if (a === "set_tax") {
+          log(`🎭 ${cur.name} দাবি করেছে সে “নান্টু মিয়া” এবং ট্যাক্স বসাবে।`);
+          startChallengeOffer();
+          return;
+        }
+        if (a === "steal") {
+          askTarget(cur.id, "ডাকাতি", "কার কাছ থেকে ডাকাতি করবেন?");
+          return;
+        }
+        if (a === "assassinate") {
+          askTarget(cur.id, "ঘাড় মটকানো", "কার ঘাড় মটকাবেন?");
+          return;
+        }
+        if (a === "betal") {
+          askTarget(cur.id, "বেতাল", "কাকে টার্গেট করবেন?");
+          return;
+        }
+        if (a === "steal_all") {
+          log(`🎭 ${cur.name} দাবি করেছে সে “ছিচকে চোর” এবং সবার থেকে ১ কয়েন চুরি করবে।`);
+          startChallengeOffer();
+          return;
+        }
+      }
+
+      function askTarget(actorId, actionLabel, question) {
+        const actor = getPlayer(actorId);
+        const options = alivePlayers()
+          .filter((p) => p.id !== actorId)
+          .map((p) => ({
+            label: `${p.name} (🪙 ${p.coins}, লাইফ ${p.hand.length})`,
+            value: { t: "target", pid: p.id },
+            kind: p.hand.length === 1 ? "danger" : "",
+          }));
+        G.pending.stage = "choose_target";
+        setAwaiting(actorId, `${actionLabel}: ${question}`, options);
+      }
+
+      function onChooseTarget(v) {
+        const p = G.pending;
+        const actor = getPlayer(p.actorId);
+        const target = getPlayer(v.pid);
+        if (!target || target.hand.length === 0) {
+          log("⚠️ টার্গেট অবৈধ।");
+          clearAwaiting();
+          endTurn();
+          return;
+        }
+        p.targetId = target.id;
+        clearAwaiting();
+
+        if (p.action.type === "coup") {
+          actor.coins -= 7;
+          log(`💀 ${actor.name} ৭ কয়েন দিয়ে ${target.name}-কে হত্যা করেছে (ব্লক/চ্যালেঞ্জ হয় না)।`);
+          requestReveal(target.id, "হত্যা", `${target.name}, আপনি কোন কার্ড হারাবেন?`);
+          return;
+        }
+
+        if (p.action.type === "steal") {
+          log(`🎭 ${actor.name} দাবি করেছে সে “${p.claimedRole}” এবং ${target.name}-এর কাছ থেকে ডাকাতি করবে।`);
+          p.challengeQueue = buildChallengeQueue(actor.id);
+          startChallengeOffer();
+          return;
+        }
+        if (p.action.type === "assassinate") {
+          if (actor.coins < 3) {
+            log(`⚠️ ${actor.name}-এর ৩ কয়েন নেই — অ্যাকশন বাতিল।`);
+            askAction(actor.id);
+            return;
+          }
+          actor.coins -= 3;
+          p.escrow = { type: "assassinate", amount: 3 };
+          log(`🎭 ${actor.name} ৩🪙 (এস্ক্রো) দিয়ে “${p.claimedRole}” দাবি করেছে এবং ${target.name}-কে ঘাড় মটকাবে।`);
+          p.challengeQueue = buildChallengeQueue(actor.id);
+          startChallengeOffer();
+          return;
+        }
+        if (p.action.type === "betal") {
+          if (actor.coins < 5) {
+            log(`⚠️ ${actor.name}-এর ৫ কয়েন নেই — বেতাল খেলতে পারবেন না।`);
+            askAction(actor.id);
+            return;
+          }
+          p.escrow = { type: "betal", amount: 5 };
+          log(`🎭 ${actor.name} “${p.claimedRole}” দাবি করেছে এবং ${target.name}-কে টার্গেট করেছে (২🪙 দিলে বাঁচতে পারে)।`);
+          p.challengeQueue = buildChallengeQueue(actor.id);
+          startChallengeOffer();
+          return;
+        }
+      }
+
+      function buildChallengeQueue(actorId) {
+        // in turn order, starting from next player
+        const order = G.players.map((p) => p.id);
+        const startIdx = order.indexOf(actorId);
+        const q = [];
+        for (let i = 1; i < order.length; i++) {
+          const pid = order[(startIdx + i) % order.length];
+          const pl = getPlayer(pid);
+          if (pl && pl.hand.length > 0) q.push(pid);
+        }
+        return q;
+      }
+
+      function startChallengeOffer() {
+        const p = G.pending;
+        p.stage = "challenge_offer";
+        offerNextChallenge();
+      }
+
+      function offerNextChallenge() {
+        const p = G.pending;
+        if (!p) return;
+        const actor = getPlayer(p.actorId);
+        const role = p.claimedRole;
+        const next = p.challengeQueue.shift();
+        if (!next) {
+          // no challenge
+          if (p.action.type === "steal") {
+            p.blockQueue = [p.targetId]; // only target
+            startBlockOffer();
+            return;
+          }
+          if (p.action.type === "assassinate") {
+            p.blockQueue = [p.targetId]; // only target
+            startBlockOffer();
+            return;
+          }
+          // tax / mamdo / exchange / arun / steal_all / set_tax / betal (no block)
+          executeAction();
+          return;
+        }
+        const challenger = getPlayer(next);
+        if (!challenger || challenger.hand.length === 0) return offerNextChallenge();
+        p.awaitingChallenger = next;
+
+        const label = role ? `“${role}”` : "এই দাবী";
+        setAwaiting(next, `${actor.name} ${label} দাবি করেছে। চ্যালেঞ্জ করবেন?`, [
+          { label: "চ্যালেঞ্জ! 🛑", value: { t: "challenge", yes: true }, kind: "danger" },
+          { label: "পাস", value: { t: "challenge", yes: false }, kind: "" },
+        ]);
+        if (mode === "local") ensureLocalViewer(next).then(() => {});
+      }
+
+      function onChallengeResponse(v) {
+        const p = G.pending;
+        const expected = p.awaitingChallenger;
+        if (G.awaitingInput && G.awaitingInput.playerId !== expected) return;
+        clearAwaiting();
+        if (!v.yes) {
+          offerNextChallenge();
+          return;
+        }
+        resolveChallenge(expected, p.actorId, p.claimedRole, /*onTruth*/ () => {
+          // after challenger loses influence, continue to block/execute
+          if (p.action.type === "steal" || p.action.type === "assassinate") startBlockOffer();
+          else executeAction();
+        }, /*onLie*/ () => {
+          // action fails, turn ends
+          refundPendingEscrow("চ্যালেঞ্জে হার");
+          endTurn();
+        });
+      }
+
+      function buildForeignAidBlockQueue(actorId) {
+        // anyone else can block
+        return buildChallengeQueue(actorId);
+      }
+
+      function startBlockOffer() {
+        const p = G.pending;
+        p.stage = "block_offer";
+        if (p.action.type === "steal") p.blockQueue = [p.targetId];
+        else if (p.action.type === "assassinate") p.blockQueue = [p.targetId];
+        offerNextBlock();
+      }
+
+      function offerNextBlock() {
+        const p = G.pending;
+        const actor = getPlayer(p.actorId);
+        if (!p) return;
+
+        // If already blocked, go to decision
+        if (p.block) {
+          askBlockChallengeDecision();
+          return;
+        }
+
+        const next = p.blockQueue.shift();
+        if (!next) {
+          executeAction();
+          return;
+        }
+
+        const blocker = getPlayer(next);
+        if (!blocker || blocker.hand.length === 0) return offerNextBlock();
+
+        let blockOptions = [];
+        if (p.action.type === "foreign_aid") {
+          if (!roleInCurrentPool("বীর বিক্রম")) {
+            executeAction();
+            return;
+          }
+          blockOptions = [
+            { label: "ব্লক (বীর বিক্রম দাবি) 🛡️", value: { t: "block", yes: true, role: "বীর বিক্রম" }, kind: "warn" },
+            { label: "পাস", value: { t: "block", yes: false }, kind: "" },
+          ];
+          setAwaiting(next, `${actor.name} রপ্তানি (+২) নিতে যাচ্ছে। আপনি ব্লক করবেন?`, blockOptions);
+        } else if (p.action.type === "steal") {
+          const opts = [];
+          if (roleInCurrentPool("কালো ডাকাত")) opts.push({ label: "ব্লক (কালো ডাকাত দাবি) 🛡️", value: { t: "block", yes: true, role: "কালো ডাকাত" }, kind: "warn" });
+          if (roleInCurrentPool("পেটুক চন্দ্র")) opts.push({ label: "ব্লক (পেটুক চন্দ্র দাবি) 🛡️", value: { t: "block", yes: true, role: "পেটুক চন্দ্র" }, kind: "warn" });
+          if (opts.length === 0) {
+            executeAction();
+            return;
+          }
+          blockOptions = [...opts, { label: "পাস", value: { t: "block", yes: false }, kind: "" }];
+          setAwaiting(next, `${actor.name} আপনার কাছ থেকে ডাকাতি করতে যাচ্ছে। আপনি ব্লক করবেন?`, blockOptions);
+        } else if (p.action.type === "assassinate") {
+          const opts = [];
+          if (roleInCurrentPool("জীনের বাদশা")) opts.push({ label: "ব্লক (জীনের বাদশা দাবি) 🛡️", value: { t: "block", yes: true, role: "জীনের বাদশা" }, kind: "warn" });
+          if (roleInCurrentPool("ব্রহ্মদত্ত")) opts.push({ label: "ব্লক (ব্রহ্মদত্ত দাবি) 🛡️", value: { t: "block", yes: true, role: "ব্রহ্মদত্ত" }, kind: "warn" });
+          if (opts.length === 0) {
+            executeAction();
+            return;
+          }
+          blockOptions = [...opts, { label: "পাস", value: { t: "block", yes: false }, kind: "" }];
+          setAwaiting(next, `${actor.name} আপনার ঘাড় মটকাতে যাচ্ছে। আপনি ব্লক করবেন?`, blockOptions);
+        } else {
+          // not blockable
+          executeAction();
+          return;
+        }
+        p.awaitingBlocker = next;
+        if (mode === "local") ensureLocalViewer(next).then(() => {});
+      }
+
+      function onBlockResponse(v) {
+        const p = G.pending;
+        const expected = p.awaitingBlocker;
+        if (G.awaitingInput && G.awaitingInput.playerId !== expected) return;
+        clearAwaiting();
+        if (!v.yes) {
+          offerNextBlock();
+          return;
+        }
+        p.block = { blockerId: expected, role: v.role };
+        const blocker = getPlayer(expected);
+        log(`🛡️ ${blocker.name} দাবি করেছে সে “${v.role}” এবং অ্যাকশন ব্লক করবে।`);
+        askBlockChallengeDecision();
+      }
+
+      function askBlockChallengeDecision() {
+        const p = G.pending;
+        p.stage = "block_challenge_decision";
+        const actor = getPlayer(p.actorId);
+        const block = p.block;
+        const blocker = getPlayer(block.blockerId);
+        setAwaiting(p.actorId, `${blocker.name} “${block.role}” দাবি করে ব্লক করেছে। আপনি কী করবেন?`, [
+          { label: "ব্লক মেনে নিন (অ্যাকশন বাতিল)", value: { t: "block_decide", challenge: false }, kind: "" },
+          { label: "ব্লক চ্যালেঞ্জ! 🛑", value: { t: "block_decide", challenge: true }, kind: "danger" },
+        ]);
+        if (mode === "local") ensureLocalViewer(p.actorId).then(() => {});
+      }
+
+      function onBlockChallengeDecision(v) {
+        const p = G.pending;
+        if (G.awaitingInput && G.awaitingInput.playerId !== p.actorId) return;
+        clearAwaiting();
+        if (!v.challenge) {
+          log("🔒 ব্লক গ্রহণ করা হয়েছে — অ্যাকশন বাতিল।");
+          refundPendingEscrow("ব্লক");
+          endTurn();
+          return;
+        }
+        // actor challenges blocker
+        const block = p.block;
+        resolveChallenge(p.actorId, block.blockerId, block.role, /*onTruth*/ () => {
+          // blocker truth => block holds, actor loses influence, turn ends
+          log("🔒 ব্লক সত্য প্রমাণিত — অ্যাকশন বাতিল।");
+          refundPendingEscrow("ব্লক");
+          endTurn();
+        }, /*onLie*/ () => {
+          // blocker lied => block fails, action executes
+          log("✅ ব্লক মিথ্যা প্রমাণিত — অ্যাকশন কার্যকর হবে।");
+          executeAction();
+        });
+      }
+
+      function resolveChallenge(challengerId, challengedId, neededRole, onTruth, onLie) {
+        const challenger = getPlayer(challengerId);
+        const challenged = getPlayer(challengedId);
+        log(`🛑 ${challenger.name} ${challenged.name}-কে চ্যালেঞ্জ করেছে!`);
+
+        const has = challenged.hand.includes(neededRole);
+        if (has) {
+          log(`✅ ${challenged.name} সত্যি “${neededRole}” দেখাতে পেরেছে। চ্যালেঞ্জার ১ লাইফ হারাবে।`);
+          // swap shown card: remove one instance and replace from deck
+          const idx = challenged.hand.indexOf(neededRole);
+          const shown = challenged.hand.splice(idx, 1)[0];
+          G.deck.push(shown);
+          shuffle(G.deck);
+          challenged.hand.push(G.deck.pop());
+
+          // challenger loses one influence (choose)
+          requestReveal(challengerId, "চ্যালেঞ্জ হার", `${challenger.name}, কোন কার্ড হারাবেন?`, onTruth);
+        } else {
+          log(`❌ ${challenged.name} “${neededRole}” দেখাতে পারেনি — সে ১ লাইফ হারাবে (অ্যাকশন/ব্লক ব্যর্থ)।`);
+          requestReveal(challengedId, "চ্যালেঞ্জ জেতা", `${challenged.name}, কোন কার্ড হারাবেন?`, onLie);
+        }
+      }
+
+      function requestReveal(playerId, reasonTitle, promptText, afterRevealCb) {
+        const p = getPlayer(playerId);
+        G.pending = G.pending || {};
+        G.pending.stage = "reveal";
+        G.pending.reveal = { playerId, afterRevealCb: afterRevealCb || null };
+        const options = p.hand.map((r) => ({ label: r, value: { t: "reveal", role: r }, kind: "danger" }));
+        setAwaiting(playerId, `${reasonTitle}: ${promptText}`, options);
+        if (mode === "local") ensureLocalViewer(playerId).then(() => {});
+      }
+
+      function onRevealChoice(v) {
+        const ctx = G.pending?.reveal;
+        if (!ctx) return;
+        if (G.awaitingInput && G.awaitingInput.playerId !== ctx.playerId) return;
+        const p = getPlayer(ctx.playerId);
+        clearAwaiting();
+
+        const idx = p.hand.indexOf(v.role);
+        if (idx < 0) {
+          log("⚠️ অবৈধ কার্ড।");
+          endTurn();
+          return;
+        }
+        const dead = p.hand.splice(idx, 1)[0];
+        p.revealed.push(dead);
+        log(`💀 ${p.name} ১টি কার্ড হারিয়েছে: “${dead}”`);
+
+        if (p.hand.length === 0) {
+          log(`🚫 ${p.name} গেম থেকে আউট!`);
+        }
+        if (checkWinner()) return;
+
+        const cb = ctx.afterRevealCb;
+        G.pending.reveal = null;
+        if (cb) {
+          cb();
+          return;
+        }
+
+        // If reveal was from coup/assassinate, end turn
+        endTurn();
+      }
+
+      function executeAction() {
+        const p = G.pending;
+        const actor = getPlayer(p.actorId);
+        const target = p.targetId ? getPlayer(p.targetId) : null;
+
+        // clear any awaiting
+        clearAwaiting();
+
+        if (p.action.type === "foreign_aid") {
+          actor.coins += 2;
+          log(`💰 ${actor.name} রপ্তানি থেকে ২ কয়েন পেয়েছে।`);
+          endTurn();
+          return;
+        }
+        if (p.action.type === "tax") {
+          actor.coins += 3;
+          log(`💰 ${actor.name} বীরত্ব ভাতা হিসেবে ৩ কয়েন পেয়েছে।`);
+          endTurn();
+          return;
+        }
+        if (p.action.type === "mamdo") {
+          actor.coins += 4;
+          log(`💰 ${actor.name} মামদো-হুমদো দিয়ে ৪ কয়েন পেয়েছে।`);
+          // MVP: অন্যরা চাইলে "আমার কাছে মামদো-হুমদো আছে" বলে ১ কয়েন গিফট নিতে পারে (চ্যালেঞ্জ ছাড়া)
+          p.stage = "mamdo_claims";
+          p.mamdo = { queue: buildChallengeQueue(actor.id) };
+          askNextMamdoClaim();
+          return;
+        }
+        if (p.action.type === "steal") {
+          const stolen = Math.min(2, target.coins);
+          target.coins -= stolen;
+          actor.coins += stolen;
+          log(`⚔️ ${actor.name} ${target.name}-এর কাছ থেকে ${stolen} কয়েন ডাকাতি করেছে।`);
+          endTurn();
+          return;
+        }
+        if (p.action.type === "assassinate") {
+          // ভিডিও-২ অনুযায়ী: সফল হলে ৩ কয়েন টার্গেটের কাছে যাবে (ব্লক হলে ফেরত)
+          if (p.escrow?.type === "assassinate" && p.escrow.amount) {
+            target.coins += p.escrow.amount;
+            log(`💸 ${actor.name}-এর ৩ কয়েন ${target.name}-এর কাছে গেছে।`);
+            p.escrow = null;
+          }
+          log(`💀 ${actor.name} ${target.name}-কে ঘাড় মটকিয়েছে।`);
+          requestReveal(target.id, "ঘাড় মটকানো", `${target.name}, কোন কার্ড হারাবেন?`);
+          return;
+        }
+        if (p.action.type === "betal") {
+          // টার্গেট চাইলে ২ কয়েন দিয়ে বাঁচতে পারে, নইলে অ্যাক্টর ৫ কয়েন দিয়ে মারে
+          p.stage = "betal_bribe";
+          setAwaiting(target.id, `বেতাল: ${actor.name} আপনাকে মারতে যাচ্ছে। আপনি ২ কয়েন দিয়ে বাঁচবেন?`, [
+            { label: "২ কয়েন দেব (বাঁচব)", value: { t: "betal_bribe", pay: true }, kind: "warn" },
+            { label: "দেব না", value: { t: "betal_bribe", pay: false }, kind: "danger" },
+          ]);
+          return;
+        }
+        if (p.action.type === "exchange") {
+          // draw 2
+          const drawn = [G.deck.pop(), G.deck.pop()].filter(Boolean);
+          const choices = actor.hand.concat(drawn);
+          // store
+          p.stage = "exchange_pick";
+          p.exchange = { actorId: actor.id, choices, drawn };
+          // UI via modal-like selection: choose 2 to keep
+          const extra =
+            `<div class="divider"></div>
+             <div class="notice">আপনি মোট ৪টি কার্ড দেখছেন। যেকোনো ২টি রাখুন, বাকি ২টি ডেকে ফিরবে।</div>
+             <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:10px;">
+               ${choices.map((r) => `<span class="tag">${r}</span>`).join("")}
+             </div>`;
+          setAwaiting(actor.id, "স্বাদ বদল: কোন ২টি কার্ড রাখবেন?", [
+            { label: "সিলেক্ট করুন…", value: { t: "exchange_open" }, kind: "primary" },
+          ]);
+
+          // We'll open a custom modal when actor clicks "সিলেক্ট করুন…"
+          G.pending._exchangeExtra = extra;
+          broadcastState();
+          render();
+          return;
+        }
+
+        if (p.action.type === "arun") {
+          // MVP: ১টি কার্ড দেখবে + চাইলে কয়েন দিয়ে আরও কার্ড দেখবে (প্রতি কয়েন ১টি কার্ড)
+          p.stage = "arun_pay";
+          const maxExtra = Math.min(5, actor.coins); // UI সিম্পল রাখতে ৫ পর্যন্ত
+          const opts = [];
+          for (let i = 0; i <= maxExtra; i++) {
+            opts.push({ label: `${i} অতিরিক্ত কার্ড (খরচ ${i}🪙)`, value: { t: "arun_pay", extra: i }, kind: i === 0 ? "" : "warn" });
+          }
+          setAwaiting(actor.id, "অরুণ: কত কয়েন দিয়ে আরও কার্ড দেখবেন?", opts);
+          return;
+        }
+
+        if (p.action.type === "steal_all") {
+          p.stage = "steal_all_block";
+          p.stealAll = { queue: buildChallengeQueue(actor.id), blocked: {} };
+          askNextStealAllBlock();
+          return;
+        }
+
+        if (p.action.type === "set_tax") {
+          p.stage = "tax_pick";
+          const pool = (G?.settings?.rolesPool && G.settings.rolesPool.length ? G.settings.rolesPool : DEFAULT_ROLE_POOL).slice();
+          setAwaiting(actor.id, "নান্টু মিয়া: কোন ক্যারেক্টারের ওপর ট্যাক্স বসাবেন?", pool.map((r) => ({
+            label: r,
+            value: { t: "tax_pick", role: r },
+            kind: r === "নান্টু মিয়া" ? "warn" : "",
+          })));
+          return;
+        }
+
+        // fallback
+        endTurn();
+      }
+
+      function askNextMamdoClaim() {
+        const p = G.pending;
+        const actor = getPlayer(p.actorId);
+        const next = p.mamdo.queue.shift();
+        if (!next) {
+          endTurn();
+          return;
+        }
+        const pl = getPlayer(next);
+        if (!pl || pl.hand.length === 0) return askNextMamdoClaim();
+        setAwaiting(next, `মামদো-হুমদো: আপনি কি “মামদো-হুমদো” দাবি করবেন? (দাবি করলে ${actor.name} আপনাকে ১ কয়েন গিফট দেবে)`, [
+          { label: "দাবি করব", value: { t: "mamdo_claim", yes: true }, kind: "warn" },
+          { label: "পাস", value: { t: "mamdo_claim", yes: false }, kind: "" },
+        ]);
+      }
+
+      function onMamdoClaim(v) {
+        const p = G.pending;
+        const actor = getPlayer(p.actorId);
+        const claimantId = G.awaitingInput?.playerId;
+        const claimant = getPlayer(claimantId);
+        if (G.awaitingInput && claimantId && G.awaitingInput.playerId !== claimantId) return;
+        clearAwaiting();
+        if (!claimant) {
+          askNextMamdoClaim();
+          return;
+        }
+        if (v.yes) {
+          const give = Math.min(1, actor.coins);
+          actor.coins -= give;
+          claimant.coins += give;
+          log(`🎁 ${claimant.name} “মামদো-হুমদো” দাবি করেছে — ${actor.name} তাকে ${give} কয়েন দিয়েছে।`);
+        }
+        askNextMamdoClaim();
+      }
+
+      function askNextStealAllBlock() {
+        const p = G.pending;
+        const actor = getPlayer(p.actorId);
+        const next = p.stealAll.queue.shift();
+        if (!next) {
+          // execute steal all
+          let total = 0;
+          for (const pl of alivePlayers()) {
+            if (pl.id === actor.id) continue;
+            const blocked = p.stealAll.blocked[pl.id] === true;
+            if (blocked) continue;
+            if (pl.coins > 0) {
+              pl.coins -= 1;
+              total += 1;
             }
+          }
+          actor.coins += total;
+          log(`🪙 ছিচকে চোর: ${actor.name} মোট ${total} কয়েন চুরি করেছে।`);
+          endTurn();
+          return;
+        }
+        const pl = getPlayer(next);
+        if (!pl || pl.hand.length === 0) return askNextStealAllBlock();
+        setAwaiting(next, `ছিচকে চোর: আপনি কি “ছিচকে চোর” দাবি করে ১ কয়েন দেওয়া থেকে বাঁচবেন?`, [
+          { label: "ব্লক (ছিচকে চোর দাবি)", value: { t: "steal_all_block", yes: true }, kind: "warn" },
+          { label: "পাস (১ কয়েন যাবে)", value: { t: "steal_all_block", yes: false }, kind: "" },
+        ]);
+      }
+
+      function onStealAllBlock(v) {
+        const p = G.pending;
+        const blockerId = G.awaitingInput?.playerId;
+        if (G.awaitingInput && blockerId && G.awaitingInput.playerId !== blockerId) return;
+        clearAwaiting();
+        p.stealAll.blocked[blockerId] = !!v.yes;
+        askNextStealAllBlock();
+      }
+
+      async function onArunPayChoice(v) {
+        const p = G.pending;
+        const actor = getPlayer(p.actorId);
+        if (G.awaitingInput && G.awaitingInput.playerId !== actor.id) return;
+        clearAwaiting();
+
+        const extra = Math.max(0, Math.min(5, Number(v.extra || 0)));
+        const cost = Math.min(extra, actor.coins);
+        actor.coins -= cost;
+        if (cost > 0) log(`🕵️‍♂️ অরুণ: ${actor.name} ${cost} কয়েন দিয়ে আরও ${cost}টি কার্ড দেখবে।`);
+
+        const count = Math.min(G.deck.length, 1 + cost);
+        const peek = [];
+        for (let i = 0; i < count; i++) peek.push(G.deck.pop());
+
+        // AI হলে UI/modal না দেখিয়ে সিম্পলভাবে কার্ড ফিরিয়ে দিই
+        if (actor.isAI) {
+          for (const r of peek) G.deck.push(r);
+          shuffle(G.deck);
+          log(`🕵️‍♂️ অরুণ: ${actor.name} কার্ড দেখেছে (AI), কিন্তু বদলায়নি।`);
+          endTurn();
+          return;
         }
 
-        function initiateGameEngine() {
-            const masterName = document.getElementById('player-name').value.trim() || "Rayed";
-            const checkedBoxes = document.querySelectorAll('.card-checkbox:checked');
-            state.selectedCards = Array.from(checkedBoxes).map(cb => cb.value);
-            
-            if(state.selectedCards.length < 3) return alert("⚠️ খেলার জন্য কমপক্ষে ৩টি ক্যারেক্টার কার্ড সিলেক্ট করুন!");
+        // লোকাল প্রাইভেসি
+        if (mode === "local") await ensureLocalViewer(actor.id);
 
-            const total = parseInt(document.getElementById('total-players').value);
-            state.players = [{ name: masterName, coins: 2, cards: [], lives: 2, deadCards: [] }];
-            
-            const standardOpponents = ["saba", "Saim Nafi", "Pranto"];
-            for(let i = 2; i <= total; i++) {
-                state.players.push({ name: standardOpponents[i-2], coins: 2, cards: [], lives: 2, deadCards: [] });
+        const pick = await showModal({
+          title: "অরুণ: ডেক কার্ড",
+          text: "আপনি চাইলে ১টি কার্ড নিতে পারেন (অথবা কিছুই না)।",
+          buttons: [
+            ...peek.map((r) => ({ label: `নিন: ${r}`, value: r, kind: "primary" })),
+            { label: "কিছুই না", value: null, kind: "" },
+          ],
+        });
+
+        if (pick) {
+          const out = await showModal({
+            title: "অরুণ: সোয়াপ",
+            text: "আপনি কোন কার্ড ডেকে ফেরত দেবেন?",
+            buttons: actor.hand.map((r) => ({ label: r, value: r, kind: "danger" })),
+          });
+          const outIdx = actor.hand.indexOf(out);
+          if (outIdx >= 0) actor.hand[outIdx] = pick;
+          // return others + out card
+          const remaining = peek.filter((r) => r !== pick);
+          remaining.push(out);
+          for (const r of remaining) G.deck.push(r);
+          shuffle(G.deck);
+          log(`🔁 অরুণ: ${actor.name} একটি কার্ড সোয়াপ করেছে।`);
+        } else {
+          // return all
+          for (const r of peek) G.deck.push(r);
+          shuffle(G.deck);
+          log(`🕵️‍♂️ অরুণ: ${actor.name} কার্ড দেখেছে, কিন্তু বদলায়নি।`);
+        }
+        endTurn();
+      }
+
+      function onTaxPick(v) {
+        const p = G.pending;
+        const actor = getPlayer(p.actorId);
+        if (G.awaitingInput && G.awaitingInput.playerId !== actor.id) return;
+        clearAwaiting();
+        const role = v.role;
+        G.tax = { role, collectorId: actor.id };
+        log(`🏷️ ট্যাক্স বসানো হলো: এখন থেকে “${role}” অ্যাকশন খেলতে ১ কয়েন ট্যাক্স লাগবে (কালেক্টর: ${actor.name})।`);
+        endTurn();
+      }
+
+      function onBetalBribe(v) {
+        const p = G.pending;
+        const actor = getPlayer(p.actorId);
+        const target = getPlayer(p.targetId);
+        if (G.awaitingInput && G.awaitingInput.playerId !== target.id) return;
+        clearAwaiting();
+        if (v.pay && target.coins >= 2) {
+          target.coins -= 2;
+          actor.coins += 2;
+          log(`🛡️ বেতাল: ${target.name} ২ কয়েন দিয়ে বেঁচে গেছে। ${actor.name} ২ কয়েন পেয়েছে।`);
+          endTurn();
+          return;
+        }
+        // target won't/can't pay => actor pays 5 to bank and kills
+        if (actor.coins < 5) {
+          log(`⚠️ ${actor.name}-এর ৫ কয়েন নেই — বেতাল ব্যর্থ।`);
+          endTurn();
+          return;
+        }
+        actor.coins -= 5;
+        log(`💀 বেতাল: ${actor.name} ৫ কয়েন দিয়ে ${target.name}-কে মেরেছে।`);
+        requestReveal(target.id, "বেতাল", `${target.name}, কোন কার্ড হারাবেন?`);
+      }
+
+      async function onExchangePick(v) {
+        // not used directly (handled by exchange_open)
+      }
+
+      async function openExchangePicker() {
+        const p = G.pending;
+        const ex = p.exchange;
+        const actor = getPlayer(ex.actorId);
+        const choices = ex.choices;
+
+        // local privacy
+        if (mode === "local") await ensureLocalViewer(actor.id);
+
+        // build checkboxes
+        const html =
+          `<div class="divider"></div>
+           <div class="notice">নিচ থেকে ঠিক ২টি সিলেক্ট করুন:</div>
+           <div style="margin-top:10px; display:grid; grid-template-columns:1fr 1fr; gap:8px;">` +
+          choices
+            .map((r, i) => {
+              return `<label style="display:flex; gap:10px; align-items:center; border:1px solid rgba(35,52,86,.6); padding:10px; border-radius:12px; background:rgba(8,12,22,.35); cursor:pointer; font-weight:1000;">
+                <input type="checkbox" data-ex-idx="${i}" style="transform:scale(1.2)" />
+                <span>${r}</span>
+              </label>`;
+            })
+            .join("") +
+          `</div>`;
+
+        modalBackdrop.classList.remove("hidden");
+        modalTitle.textContent = "স্বাদ বদল (Exchange)";
+        modalText.textContent = "আপনি কোন ২টি কার্ড রাখবেন?";
+        modalExtra.classList.remove("hidden");
+        modalExtra.innerHTML = html;
+        modalButtons.innerHTML = "";
+
+        const keep = await new Promise((resolve) => {
+          const ok = document.createElement("button");
+          ok.className = "btn primary";
+          ok.textContent = "নিশ্চিত";
+          ok.onclick = () => {
+            const boxes = [...modalExtra.querySelectorAll("input[type=checkbox]")];
+            const picked = boxes.filter((b) => b.checked).map((b) => Number(b.getAttribute("data-ex-idx")));
+            if (picked.length !== 2) {
+              alert("ঠিক ২টি কার্ড সিলেক্ট করতে হবে।");
+              return;
             }
+            hideModal();
+            resolve(picked);
+          };
+          const cancel = document.createElement("button");
+          cancel.className = "btn";
+          cancel.textContent = "বাতিল";
+          cancel.onclick = () => {
+            hideModal();
+            resolve(null);
+          };
+          modalButtons.appendChild(cancel);
+          modalButtons.appendChild(ok);
+        });
 
-            // ডেক তৈরি ও ডিস্ট্রিবিউশন
-            let pool = [];
-            state.selectedCards.forEach(c => { pool.push(c(), c(), c()); }); 
-            state.deck = state.selectedCards.flatMap(c => [c, c, c]).sort(() => Math.random() - 0.5);
+        if (!keep) {
+          // default keep first two
+          return [0, 1];
+        }
+        return keep;
+      }
 
-            state.players.forEach(p => {
-                p.cards = [state.deck.pop(), state.deck.pop()];
-            });
+      function finalizeExchange(keepIdxs) {
+        const p = G.pending;
+        const ex = p.exchange;
+        const actor = getPlayer(ex.actorId);
+        const choices = ex.choices;
 
-            state.logs = ["📢 খেলা শুরু হয়েছে!", "🃏 সবার হাতে ২টি করে গোপন কার্ড দেওয়া হয়েছে।"];
-            state.currentTurn = 0;
+        const kept = keepIdxs.map((i) => choices[i]);
+        const returned = choices.filter((_, i) => !keepIdxs.includes(i));
 
-            document.getElementById('lobby-screen').classList.add('hidden');
-            document.getElementById('game-screen').classList.remove('hidden');
-            
-            renderEngine();
+        // reset actor hand: remove all old hand, then set kept
+        actor.hand = kept;
+        // return others to deck
+        for (const r of returned) G.deck.push(r);
+        shuffle(G.deck);
+
+        log(`🔄 ${actor.name} কার্ড এক্সচেঞ্জ করেছে।`);
+        endTurn();
+      }
+
+      function endTurn() {
+        G.pending = null;
+        G.awaitingInput = null;
+        if (checkWinner()) return;
+        const cur = getPlayer(G.currentPlayerId);
+        G.currentPlayerId = nextAlivePlayerId(cur.id);
+        broadcastState();
+        render();
+        // next
+        setTimeout(() => tick(), 250);
+      }
+
+      // ------------------------------------------------------------
+      // AI (simple heuristic + randomness)
+      // ------------------------------------------------------------
+      function pct(n) {
+        return Math.max(0, Math.min(100, Number(n || 0)));
+      }
+
+      function aiShould(pctVal) {
+        return Math.random() * 100 < pct(pctVal);
+      }
+
+      function aiRespond(playerId) {
+        // For now AI only responds when it is awaitedInput owner.
+        if (!G || !G.awaitingInput || G.awaitingInput.playerId !== playerId) return;
+        const p = getPlayer(playerId);
+        const ai = G.settings.ai;
+        const opts = G.awaitingInput.options;
+
+        // Decide based on context in hint (MVP)
+        const hint = (G.awaitingInput.hint || "").toLowerCase();
+
+        // Reveal: choose random card
+        if (opts.length && opts[0].value?.t === "reveal") {
+          const pick = opts[Math.floor(Math.random() * opts.length)].value;
+          receiveInput(pick);
+          return;
         }
 
-        function renderEngine() {
-            const activeP = state.players[state.currentTurn];
-            document.getElementById('turn-banner').innerText = `${activeP.name}-এর টার্ন`;
+        // Challenge decision
+        if (opts.some((o) => o.value?.t === "challenge")) {
+          const doCh = aiShould(ai.challenge);
+          const pick = opts.find((o) => o.value?.t === "challenge" && o.value.yes === doCh)?.value
+            || opts.find((o) => o.value?.t === "challenge" && o.value.yes === false)?.value;
+          receiveInput(pick);
+          return;
+        }
 
-            // কার্ড ডিসপ্লে লজিক
-            document.getElementById('my-cards').innerHTML = activeP.cards.map((c, i) => `
-                <div class="bg-slate-900 border-2 border-amber-500/60 rounded-xl overflow-hidden w-36 sm:w-44 shadow-2xl flex flex-col justify-between h-56 sm:h-64">
-                    <div class="h-3/4 bg-slate-800 flex items-center justify-center relative bg-cover bg-center" style="background-image: url('images/\${c === 'বীর বিক্রম'?'bir_bikrom':c === 'মামদো-হमদো'?'mamdo_homdo':c === 'কালু ডাকাত'?'kalu_dakat':c === 'পেটুকচন্দ্র'?'petuk_chondro':c === 'ব্রহ্মদত্ত'?'brohmodotto':'jiner_badshah'}.jpg')">
-                        <div class="absolute bottom-0 left-0 right-0 bg-slate-950/80 p-1.5 text-center">
-                            <span class="text-xs font-black text-white block">\${c}</span>
-                        </div>
-                    </div>
-                    <div class="p-1.5 bg-slate-950 text-center border-t border-slate-800">
-                        <span class="text-[10px] text-amber-400 block font-semibold">🛡️ \${CARD_DATA[c]?.block || 'ব্লক নেই'}</span>
-                    </div>
-                </div>
-            `).join('');
+        // Block decision
+        if (opts.some((o) => o.value?.t === "block")) {
+          // Slight preference to block harmful actions
+          const doBlock = aiShould(Math.min(85, ai.aggression + 20));
+          const pick = opts.find((o) => o.value?.t === "block" && o.value.yes === doBlock)?.value
+            || opts.find((o) => o.value?.t === "block" && o.value.yes === false)?.value;
+          receiveInput(pick);
+          return;
+        }
 
-            // অ্যাকশন বাটন প্যানেল রেন্ডার
-            if (state.currentAction === null) {
-                document.getElementById('action-panel').classList.remove('hidden');
-                document.getElementById('reaction-panel').classList.add('hidden');
-                document.getElementById('action-panel').innerHTML = state.selectedCards.map(cName => `
-                    <button onclick="handleActionDeclaration('\${cName}')" class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs py-2 px-1.5 rounded shadow transition active:scale-95">\${cName}</button>
-                `).join('') + `<button onclick="takeIncome()" class="bg-slate-700 hover:bg-slate-600 text-white font-bold text-xs py-2 px-1.5 rounded shadow col-span-2">১ কয়েন নেওয়া (Infallible)</button>`;
+        // Block challenge decision
+        if (opts.some((o) => o.value?.t === "block_decide")) {
+          const doCh = aiShould(ai.challenge);
+          const pick = opts.find((o) => o.value?.t === "block_decide" && o.value.challenge === doCh)?.value
+            || opts.find((o) => o.value?.t === "block_decide" && o.value.challenge === false)?.value;
+          receiveInput(pick);
+          return;
+        }
+
+        // Target pick: prefer low-life
+        if (opts.length && opts[0].value?.t === "target") {
+          let best = opts[0];
+          for (const o of opts) {
+            const m = o.label.match(/লাইফ\s(\d)/);
+            const lives = m ? Number(m[1]) : 2;
+            if (lives === 1) {
+              best = o;
+              break;
             }
-
-            // বটম সেকশন: প্লেয়ার বক্স মেকিং (হুবহু ইউটিউব স্টাইল)
-            document.getElementById('player-status-row').innerHTML = state.players.map((p, idx) => {
-                const isCurrent = idx === state.currentTurn;
-                const boxBg = p.lives === 0 ? 'bg-slate-900 opacity-40 border-slate-950' : (isCurrent ? 'bg-emerald-700 border-emerald-500' : 'bg-orange-950/40 border-orange-900/60');
-                
-                let cardStatusHTML = '';
-                for(let l=0; l<p.lives; l++) cardStatusHTML += `<span class="bg-slate-950 border border-slate-800 text-[9px] px-1.5 py-0.5 rounded text-emerald-400 font-bold">?</span>`;
-                p.deadCards.forEach(dc => {
-                    cardStatusHTML += `<span class="bg-red-950 border border-red-900 text-[9px] px-1 py-0.5 rounded text-red-400 font-mono line-through font-bold">\${dc}</span>`;
-                });
-
-                return `
-                    <div class="\${boxBg} border-2 rounded-xl p-3 w-28 sm:w-32 flex flex-col items-center justify-between shadow-xl text-center">
-                        <span class="text-xs font-black text-slate-100 border-b border-white/10 pb-1 w-full truncate">	ext{\${p.name\}\}</span>
-                        <span class="text-xs font-bold text-amber-300 my-1.5">🪙 	ext{\${p.coins\}\}</span>
-                        <div class="flex flex-wrap gap-1 justify-center mt-1">	ext{\${cardStatusHTML\}\}</div>
-                    </div>
-                `;
-            }).join('');
-
-            const logBox = document.getElementById('game-logs');
-            logBox.innerHTML = state.logs.map(l => `<p class="border-b border-slate-950/50 py-1 text-slate-200">⚡ 	ext{\${l\}\}</p>`).join('');
-            logBox.scrollTop = logBox.scrollHeight;
+          }
+          receiveInput(best.value);
+          return;
         }
 
-        function takeIncome() {
-            let p = state.players[state.currentTurn];
-            p.coins += 1;
-            state.logs.push(`\${p.name} নিরাপদে ১টি মুদ্রা সংগ্রহ করেছে।`);
-            advanceTurn();
+        // Exchange open: just open and choose random keep
+        if (opts.length && opts[0].value?.t === "exchange_open") {
+          // pick first two (no UI for AI)
+          clearAwaiting();
+          const pctx = G.pending;
+          if (!pctx || !pctx.exchange) return endTurn();
+          finalizeExchange([0, 1]);
+          return;
         }
 
-        function handleActionDeclaration(cardName) {
-            let p = state.players[state.currentTurn];
-            if(cardName === 'ব্রহ্মদত্ত' && p.coins < 3) return alert("⚠️ ঘাড় মটকানোর জন্য কমপক্ষে ৩টি কয়েন প্রয়োজন!");
-
-            state.currentAction = { actorIdx: state.currentTurn, card: cardName, type: 'action' };
-            document.getElementById('action-panel').classList.add('hidden');
-            document.getElementById('reaction-panel').classList.remove('hidden');
-
-            document.getElementById('reaction-text').innerHTML = `💡 <b>\${p.name}</b> দাবি করেছে সে <b>'\${cardName}'</b> এবং পাওয়ার ব্যবহার করতে চায়!`;
-            
-            // চ্যালেঞ্জ ও রেসপন্স বাটন জেনারেশন
-            let btnHTML = '';
-            state.players.forEach((opp, idx) => {
-                if(idx !== state.currentTurn && opp.lives > 0) {
-                    btnHTML += `<button onclick="launchChallenge(\${idx})" class="bg-red-600 hover:bg-red-700 text-white text-[11px] font-bold py-1 px-2.5 rounded shadow">\${opp.name}: চ্যালেঞ্জ! 🛑</button>`;
-                    if(cardName === 'কালু ডাকাত' || cardName === 'ব্রহ্মদত্ত') {
-                        btnHTML += `<button onclick="launchBlock(\${idx})" class="bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold py-1 px-2.5 rounded shadow">\${opp.name}: ব্লক করুন 🛡️</button>`;
-                    }
-                }
-            });
-            btnHTML += `<button onclick="resolveActionEffect()" class="bg-green-600 hover:bg-green-700 text-white text-[11px] font-bold py-1 px-4 rounded shadow w-full mt-2">সবাই পাস (Execute) ➡️</button>`;
-            document.getElementById('reaction-buttons').innerHTML = btnHTML;
+        // Mamdo claim: মাঝে মাঝে দাবি করবে
+        if (opts.length && opts[0].value?.t === "mamdo_claim") {
+          const doClaim = aiShould(35);
+          const pick = opts.find((o) => o.value?.t === "mamdo_claim" && o.value.yes === doClaim)?.value
+            || opts.find((o) => o.value?.t === "mamdo_claim" && o.value.yes === false)?.value;
+          receiveInput(pick);
+          return;
         }
 
-        function launchChallenge(challengerIdx) {
-            let actor = state.players[state.currentAction.actorIdx];
-            let challenger = state.players[challengerIdx];
-            let neededCard = state.currentAction.card;
-
-            state.logs.push(`🛑 \${challenger.name} সরাসরি \${actor.name}-কে চ্যালেঞ্জ করেছে!`);
-
-            if(actor.cards.includes(neededCard)) {
-                // অ্যাক্টর সত্য বলছে! চ্যালেঞ্জার একটি কার্ড হারাবে
-                state.logs.push(`✅ \${actor.name} তার হাতের সত্য '\${neededCard}' কার্ডটি দেখিয়েছে!`);
-                killPlayerCard(challengerIdx);
-                
-                // অ্যাক্টর কার্ড পরিবর্তন করে ডেক থেকে নতুন কার্ড পাবে
-                let idx = actor.cards.indexOf(neededCard);
-                state.deck.push(actor.cards.splice(idx, 1)[0]);
-                state.deck.sort(() => Math.random() - 0.5);
-                actor.cards.push(state.deck.pop());
-
-                executeActualPower();
-            } else {
-                // অ্যাক্টর মিথ্যা বলছে/ধাপ্পাবাজি ধরে পড়েছে! অ্যাক্টর একটি কার্ড হারাবে
-                state.logs.push(`❌ \${actor.name} ধরা খেয়ে গেছে! সে মিথ্যা দাবি করছিল।`);
-                killPlayerCard(state.currentAction.actorIdx);
-            }
-            state.currentAction = null;
-            advanceTurn();
+        // Steal-all block: নিজের কয়েন থাকলে মাঝেমধ্যে ব্লক করবে
+        if (opts.length && opts[0].value?.t === "steal_all_block") {
+          const me = getPlayer(playerId);
+          const doBlock = (me.coins > 0) && aiShould(55);
+          const pick = opts.find((o) => o.value?.t === "steal_all_block" && o.value.yes === doBlock)?.value
+            || opts.find((o) => o.value?.t === "steal_all_block" && o.value.yes === false)?.value;
+          receiveInput(pick);
+          return;
         }
 
-        function launchBlock(blockerIdx) {
-            let blocker = state.players[blockerIdx];
-            let blockCard = state.currentAction.card === 'কালু ডাকাত' ? 'পেটুকচন্দ্র' : 'জীনের বাদশাহ';
-            
-            state.logs.push(`🛡️ \${blocker.name} দাবি করেছে সে '\text{\${blockCard\}\}' দিয়ে আক্রমণ ব্লক করবে!`);
-            
-            // ব্লককে চ্যালেঞ্জ করার সুযোগ
-            state.currentAction = { actorIdx: blockerIdx, card: blockCard, type: 'block' };
-            document.getElementById('reaction-text').innerHTML = `💡 <b>\${blocker.name}</b> ব্লক করার জন্য <b>'\${blockCard}'</b> দাবি করেছে!`;
-            
-            let btnHTML = '';
-            state.players.forEach((opp, idx) => {
-                if(idx !== blockerIdx && opp.lives > 0) {
-                    btnHTML += `<button onclick="launchChallenge(\${idx})" class="bg-red-600 hover:bg-red-700 text-white text-[11px] font-bold py-1 px-2.5 rounded shadow">\${opp.name}: চ্যালেঞ্জ ব্লক! 🛑</button>`;
-                }
-            });
-            btnHTML += `<button onclick="resolveBlockSuccess()" class="bg-green-600 hover:bg-green-700 text-white text-[11px] font-bold py-1 px-4 rounded shadow w-full mt-2">ব্লক মেনে নিন (Action Negated) ➡️</button>`;
-            document.getElementById('reaction-buttons').innerHTML = btnHTML;
+        // Arun pay choice: সাধারণত ০ বা ১ নেয়
+        if (opts.length && opts[0].value?.t === "arun_pay") {
+          const pick = opts.find((o) => o.value?.t === "arun_pay" && o.value.extra === 0)?.value
+            || opts[0].value;
+          receiveInput(pick);
+          return;
         }
 
-        function resolveBlockSuccess() {
-            state.logs.push(`🔒 ব্লক সফল হয়েছে! অ্যাকশন বাতিল করা হলো।`);
-            state.currentAction = null;
-            advanceTurn();
+        // Tax pick: যেকোনো একটা রোল
+        if (opts.length && opts[0].value?.t === "tax_pick") {
+          const pick = opts[Math.floor(Math.random() * opts.length)].value;
+          receiveInput(pick);
+          return;
         }
 
-        function resolveActionEffect() {
-            executeActualPower();
-            state.currentAction = null;
-            advanceTurn();
+        // Betal bribe: ২ কয়েন থাকলে বেশিরভাগ সময় দেবে
+        if (opts.length && opts[0].value?.t === "betal_bribe") {
+          const me = getPlayer(playerId);
+          const pay = me.coins >= 2 && aiShould(70);
+          const pick = opts.find((o) => o.value?.t === "betal_bribe" && o.value.pay === pay)?.value
+            || opts.find((o) => o.value?.t === "betal_bribe" && o.value.pay === false)?.value;
+          receiveInput(pick);
+          return;
         }
 
-        function executeActualPower() {
-            let actor = state.players[state.currentTurn];
-            let card = state.currentAction.card;
+        // Action selection: heuristic with bluff
+        if (opts.some((o) => o.value?.t === "action")) {
+          const me = getPlayer(playerId);
+          // forced coup handled elsewhere, but here we can choose
+          if (me.coins >= 7 && aiShould(ai.aggression + 25)) {
+            const coup = opts.find((o) => o.value?.a === "coup");
+            if (coup) return receiveInput(coup.value);
+          }
+          if (me.coins >= 5 && aiShould(ai.aggression + 5)) {
+            const betal = opts.find((o) => o.value?.a === "betal");
+            if (betal) return receiveInput(betal.value);
+          }
+          if (me.coins >= 3 && aiShould(ai.aggression + 10)) {
+            const ass = opts.find((o) => o.value?.a === "assassinate");
+            if (ass) return receiveInput(ass.value);
+          }
+          // Prefer tax if has duke or bluff
+          const hasDuke = me.hand.includes("বীর বিক্রম");
+          if (hasDuke || aiShould(ai.bluff)) {
+            const tax = opts.find((o) => o.value?.a === "tax");
+            if (tax && aiShould(65)) return receiveInput(tax.value);
+          }
+          const mamdo = opts.find((o) => o.value?.a === "mamdo");
+          if (mamdo && aiShould(55)) return receiveInput(mamdo.value);
+          const stealAll = opts.find((o) => o.value?.a === "steal_all");
+          if (stealAll && aiShould(40)) return receiveInput(stealAll.value);
+          const setTax = opts.find((o) => o.value?.a === "set_tax");
+          if (setTax && aiShould(30)) return receiveInput(setTax.value);
+          const arun = opts.find((o) => o.value?.a === "arun");
+          if (arun && aiShould(35)) return receiveInput(arun.value);
+          // Prefer steal sometimes
+          const steal = opts.find((o) => o.value?.a === "steal");
+          if (steal && aiShould(55)) return receiveInput(steal.value);
 
-            if(card === 'বীর বিক্রম') {
-                actor.coins += 3;
-                state.logs.push(`💰 \${actor.name} বীর বিক্রম ট্যাক্স হিসেবে ৩টি কয়েন পেয়েছে!`);
-            } else if(card === 'মামদো-হमদো') {
-                actor.coins += 2;
-                state.logs.push(`🪙 \${actor.name} মামদো-হমদোর সাহায্যে ২ মুদ্রা পেয়েছে!`);
-            } else if(card === 'কালু ডাকাত') {
-                let targetIdx = (state.currentTurn + 1) % state.players.length;
-                let target = state.players[targetIdx];
-                let stolen = Math.min(2, target.coins);
-                target.coins -= stolen; actor.coins += stolen;
-                state.logs.push(`⚔️ \${actor.name} কালু ডাকাত দিয়ে \${target.name} এর থেকে \${stolen} মুদ্রা লুট করেছে!`);
-            } else if(card === 'ব্রহ্মদত্ত') {
-                actor.coins -= 3;
-                let targetIdx = (state.currentTurn + 1) % state.players.length;
-                state.logs.push(`💀 \${actor.name} ব্রহ্মদত্তকে ৩ কয়েন সুপারি দিয়ে \${state.players[targetIdx].name}-এর ঘাড় মটকেছে!`);
-                killPlayerCard(targetIdx);
-            } else if(card === 'পেটুকচন্দ্র') {
-                actor.cards.push(state.deck.pop(), state.deck.pop());
-                actor.deck = actor.cards.sort(() => Math.random() - 0.5);
-                state.deck.push(actor.cards.pop(), actor.cards.pop());
-                state.logs.push(`🔄 \${actor.name} পেটুকচন্দ্রের সাহায্যে ডেকের কার্ড অদল-বদল করেছে।`);
-            }
+          // fallback: foreign aid or income
+          const fa = opts.find((o) => o.value?.a === "foreign_aid");
+          if (fa && aiShould(65)) return receiveInput(fa.value);
+          const inc = opts.find((o) => o.value?.a === "income");
+          return receiveInput(inc.value);
+        }
+      }
+
+      // ------------------------------------------------------------
+      // Controls / Navigation
+      // ------------------------------------------------------------
+      function showLobby(newMode) {
+        mode = newMode;
+        G = null;
+        lastTurnId = null;
+        myPlayerId = null;
+        isHost = false;
+        connections = new Map();
+        pendingPromptResolvers = new Map();
+        peer = null;
+
+        // prefill
+        inpName.value = inpName.value || "Player";
+        ensureLobbyNameCache(Number(selCount.value || 3));
+        renderLobbyNames();
+        // lobby UI
+        if (mode === "online_host") {
+          const code = safeUpperCode(6);
+          roomCodeEl.textContent = code;
+          setupOnlineHost(code);
+        }
+        if (mode === "online_join") {
+          // nothing yet, wait start
+        }
+        render();
+      }
+
+      function resetAll() {
+        // close peer if any
+        try { if (peer) peer.destroy(); } catch {}
+        peer = null;
+        connections = new Map();
+        pendingPromptResolvers = new Map();
+        isHost = false;
+        G = null;
+        mode = null;
+        myPlayerId = null;
+        lastTurnId = null;
+        render();
+      }
+
+      // rules modal
+      async function showRules() {
+        await showModal({
+          title: "নিয়ম (সংক্ষিপ্ত)",
+          text:
+            "লক্ষ্য: দুইটি লাইফ/কার্ড বাঁচিয়ে শেষ পর্যন্ত টিকে থাকা।\n\n" +
+            "বেসিক অ্যাকশন: আয়(+১), রপ্তানি(+২ — বীর বিক্রম ব্লক করতে পারে), হত্যা/কুপ(৭🪙 — চ্যালেঞ্জ/ব্লক নেই)।\n" +
+            "১০+ কয়েন হলে বাধ্যতামূলকভাবে হত্যা।\n\n" +
+            "ক্যারেক্টার:\n" +
+            "• বীর বিক্রম: +৩ (চ্যালেঞ্জ হতে পারে), রপ্তানি ব্লক\n" +
+            "• ব্রহ্মদত্ত: ৩🪙 দিয়ে ঘাড় মটকানো (চ্যালেঞ্জ হতে পারে, জীনের বাদশা ব্লক)\n" +
+            "• কালো ডাকাত: ২🪙 ডাকাতি (চ্যালেঞ্জ হতে পারে, কালো ডাকাত/পেটুক চন্দ্র ব্লক)\n" +
+            "• পেটুক চন্দ্র: ২ কার্ড তুলে ২টি রেখে বাকিগুলো ফেরত (চ্যালেঞ্জ হতে পারে)\n" +
+            "• জীনের বাদশা: অ্যাকশন নেই, ঘাড় মটকানো ব্লক\n\n" +
+            "চ্যালেঞ্জ: দাবি করা কার্ড দেখাতে পারলে চ্যালেঞ্জার ১ লাইফ হারায়, দেখানো কার্ড ডেকে শাফল করে নতুন কার্ড নেয়। না পারলে দাবিদার ১ লাইফ হারায় ও অ্যাকশন/ব্লক ব্যর্থ।",
+          buttons: [{ label: "ঠিক আছে", value: true, kind: "primary" }],
+        });
+      }
+
+      // ------------------------------------------------------------
+      // Exchange open handler (human only)
+      // ------------------------------------------------------------
+      async function handleSpecialInputs(v) {
+        if (v && v.t === "exchange_open") {
+          clearAwaiting();
+          const keepIdxs = await openExchangePicker();
+          finalizeExchange(keepIdxs);
+          return true;
+        }
+        return false;
+      }
+
+      // patch receiveInput to intercept special input
+      const _receiveInput = receiveInput;
+      receiveInput = function (val) {
+        if (val && val.t === "exchange_open") {
+          handleSpecialInputs(val);
+          return;
+        }
+        _receiveInput(val);
+      };
+
+      // ------------------------------------------------------------
+      // Event wiring
+      // ------------------------------------------------------------
+      btnHome.onclick = () => resetAll();
+      btnRules.onclick = () => showRules();
+      btnBack.onclick = () => resetAll();
+      btnReset.onclick = () => resetAll();
+      btnSound?.addEventListener("click", () => {
+        audioEnabled = !audioEnabled;
+        saveSoundPref();
+        updateSoundButton();
+      });
+
+      // Generic click sound for buttons (captures most interactions)
+      document.addEventListener(
+        "click",
+        (e) => {
+          const t = e.target;
+          if (t && t.closest && t.closest(".btn")) sfx("click");
+        },
+        true
+      );
+
+      selCount?.addEventListener("change", () => {
+        renderLobbyNames();
+      });
+      inpName?.addEventListener("input", () => {
+        // keep lobby cache in sync for player 1
+        if (mode === "local" || mode === "ai") renderLobbyNames();
+      });
+
+      // home buttons
+      document.querySelectorAll("[data-mode]").forEach((btn) => {
+        btn.addEventListener("click", () => showLobby(btn.getAttribute("data-mode")));
+      });
+
+      btnCopy?.addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(roomCodeEl.textContent || "");
+          await showModal({
+            title: "কপি হয়েছে",
+            text: "রুম কোড ক্লিপবোর্ডে কপি হয়েছে।",
+            buttons: [{ label: "OK", value: true, kind: "primary" }],
+          });
+        } catch {
+          // ignore
+        }
+      });
+
+      btnStart.onclick = async () => {
+        const name = (inpName.value || "").trim();
+        if (!name) {
+          await showModal({ title: "নাম দরকার", text: "আপনার নাম লিখুন।", buttons: [{ label: "OK", value: true, kind: "primary" }] });
+          return;
         }
 
-        function killPlayerCard(playerIdx) {
-            let p = state.players[playerIdx];
-            if(p.cards.length > 0) {
-                let dead = p.cards.pop();
-                p.deadCards.push(dead);
-                p.lives--;
-                state.logs.push(`💀 \${p.name} তার ১টি ক্যারেক্টার কার্ড [\text{\${dead\}\}] হারিয়েছে!`);
-            }
+        const total = Number(selCount.value || 3);
+        const names = (mode === "local" || mode === "ai") ? getLobbyNames(total) : null;
+        const rolesPool = Array.from(lobbySelectedRoles);
+        if (mode !== "online_join" && rolesPool.length !== 5) {
+          await showModal({
+            title: "ক্যারেক্টার সিলেকশন",
+            text: "খেলা শুরু করতে ঠিক ৫টি ক্যারেক্টার সিলেক্ট করতে হবে।",
+            buttons: [{ label: "OK", value: true, kind: "primary" }],
+          });
+          return;
         }
+        if (mode === "local") {
+          isHost = true;
+          initNewGame({ totalPlayers: total, withAI: false, rolesPool, names });
+          return;
+        }
+        if (mode === "ai") {
+          isHost = true;
+          const aiParams = { bluff: pct(aiBluff.value), challenge: pct(aiChallenge.value), aggression: pct(aiAggression.value) };
+          initNewGame({ totalPlayers: total, withAI: true, aiParams, rolesPool, names });
+          return;
+        }
+        if (mode === "online_host") {
+          isHost = true;
+          // create game with humans only (AI off). Players will be assigned when clients connect.
+          initNewGame({ totalPlayers: total, withAI: false, rolesPool });
+          return;
+        }
+        if (mode === "online_join") {
+          const code = (inpRoom.value || "").trim().toUpperCase();
+          if (!code) {
+            await showModal({ title: "রুম কোড দরকার", text: "রুম কোড লিখুন।", buttons: [{ label: "OK", value: true, kind: "primary" }] });
+            return;
+          }
+          await setupOnlineJoin(code);
+          // waiting for host to start and assign state
+          await showModal({
+            title: "সংযোগ হচ্ছে…",
+            text: "হোস্ট গেম শুরু করলে আপনি স্বয়ংক্রিয়ভাবে ঢুকে যাবেন।",
+            buttons: [{ label: "ঠিক আছে", value: true, kind: "primary" }],
+          });
+          return;
+        }
+      };
 
-        function advanceTurn() {
-            do {
-                state.currentTurn = (state.currentTurn + 1) % state.players.length;
-            } while (state.players[state.currentTurn].lives === 0);
-            
-            renderEngine();
-        }
+      // PWA: service worker (Android install-friendly)
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker.register("/sw.js").catch(() => {});
+        });
+      }
+
+      // initial UI
+      render();
     </script>
-</body>
+  </body>
 </html>
