@@ -450,6 +450,14 @@
                 <button id="btn-copy" class="btn small">কপি</button>
               </div>
               <div class="notice" style="margin-top:10px;">বন্ধুদেরকে রুম কোড দিন। সবাই যুক্ত হলে “খেলা শুরু” চাপুন।</div>
+              <div class="kpi" style="margin-top:10px;">
+                <span class="pill">👥 জয়েন করেছে: <b id="joined-count">0</b></span>
+              </div>
+              <div id="joined-list" class="notice" style="margin-top:10px;">এখনো কেউ জয়েন করেনি।</div>
+              <button id="btn-open-setup" class="btn primary" style="margin-top:10px;" disabled>গেম সেটআপ</button>
+              <div id="host-setup-hint" class="notice" style="margin-top:10px;">
+                কমপক্ষে ১ জন জয়েন করলে গেম সেটআপ খুলবে। সেটআপ না খোলা পর্যন্ত কোন ক্যারেক্টার/সেটা অপশন দেখা যাবে না।
+              </div>
             </div>
 
             <div id="online-join" class="hidden panel">
@@ -462,9 +470,13 @@
               <div class="notice" style="margin-top:10px;">
                 হোস্ট আপনার কাছে সংযোগ পাঠালে গেম শুরু হবে।
               </div>
+              <div id="join-status" class="notice hidden" style="margin-top:10px;"></div>
+              <div class="row" style="justify-content:flex-end; margin-top:10px;">
+                <button id="btn-join" class="btn primary">জয়েন করুন</button>
+              </div>
             </div>
 
-            <div class="panel">
+            <div id="panel-roles" class="panel">
               <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
                 <b>ক্যারেক্টার পুল</b>
                 <span class="pill">সিলেক্টেড: <b id="role-picked-count">5</b>/5</span>
@@ -659,8 +671,14 @@
       const roomCodeEl = $("room-code");
       const btnCopy = $("btn-copy");
       const inpRoom = $("inp-room");
+      const joinStatusEl = $("join-status");
+      const btnJoin = $("btn-join");
+      const joinedCountEl = $("joined-count");
+      const joinedListEl = $("joined-list");
+      const btnOpenSetup = $("btn-open-setup");
       const rolePickerEl = $("role-picker");
       const rolePickedCountEl = $("role-picked-count");
+      const panelRoles = $("panel-roles");
 
       const modePill = $("mode-pill");
       const turnName = $("turn-name");
@@ -692,6 +710,9 @@
       let connections = new Map(); // host: playerId -> PeerJS conn
       /** pending prompts for online host: promptId -> resolver */
       let pendingPromptResolvers = new Map();
+      // online lobby (pre-game) state: host tracks who joined (max 5 joiners -> total 6)
+      let lobbyJoined = new Map(); // tempConnId -> name
+      let hostSetupOpened = false; // host: setup UI unlock (after at least 1 join)
 
       // লবি রোল সিলেকশন (১০ থেকে ৫)
       let lobbySelectedRoles = new Set(DEFAULT_ROLE_POOL);
@@ -1139,10 +1160,17 @@
         aiSettings.classList.toggle("hidden", mode !== "ai");
         onlineHostPanel.classList.toggle("hidden", mode !== "online_host");
         onlineJoinPanel.classList.toggle("hidden", mode !== "online_join");
-        $("row-count").classList.toggle("hidden", mode === "online_join"); // join side doesn't need count
+        const isOnline = !!(mode && mode.startsWith("online"));
+        const canShowSetup = !isOnline || (mode === "online_host" && hostSetupOpened);
+        // online mode: total players determined by who joined (host + joiners)
+        $("row-count").classList.toggle("hidden", isOnline);
         renderLobbyNames();
-        // role picker render (only when in lobby)
-        if (mode !== null && G === null) renderRolePicker();
+        if (panelRoles) panelRoles.classList.toggle("hidden", !canShowSetup);
+        if (btnStart) btnStart.classList.toggle("hidden", mode === "online_join" || (mode === "online_host" && !hostSetupOpened));
+        if (btnOpenSetup) btnOpenSetup.classList.toggle("hidden", mode !== "online_host" || hostSetupOpened);
+        // role picker render (only when in lobby, and only after setup is visible)
+        if (mode !== null && G === null && canShowSetup) renderRolePicker();
+        if (mode === "online_host" && G === null) updateHostLobbyUI();
 
         netPill.classList.toggle("hidden", !(mode && mode.startsWith("online")));
         if (mode && mode.startsWith("online")) netPill.textContent = "🌐 অনলাইন";
@@ -1262,6 +1290,48 @@
         return s;
       }
 
+      function lobbyJoinCount() {
+        return lobbyJoined ? lobbyJoined.size : 0;
+      }
+
+      function escapeHTML(s) {
+        return String(s)
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#39;");
+      }
+
+      function setJoinStatus(text, show = true) {
+        if (!joinStatusEl) return;
+        joinStatusEl.textContent = text || "";
+        joinStatusEl.classList.toggle("hidden", !show);
+      }
+
+      function updateHostLobbyUI() {
+        // only relevant for host lobby (before game starts)
+        if (!joinedCountEl || !joinedListEl) return;
+        const n = lobbyJoinCount();
+        joinedCountEl.textContent = String(n);
+
+        if (n === 0) {
+          joinedListEl.textContent = "এখনো কেউ জয়েন করেনি।";
+        } else {
+          const names = [...lobbyJoined.values()].map((x) => (x || "Player").trim()).filter(Boolean);
+          joinedListEl.innerHTML = names.map((nm, i) => `${i + 1}. ${escapeHTML(nm)}`).join("<br/>");
+        }
+
+        if (btnOpenSetup) btnOpenSetup.disabled = n < 1;
+
+        // start gating (host can't start until setup opened + at least 1 join)
+        if (btnStart) {
+          if (mode === "online_host") {
+            btnStart.disabled = !hostSetupOpened || n < 1;
+          }
+        }
+      }
+
       async function setupOnlineHost(roomCode) {
         isHost = true;
         $("net-pill").classList.remove("hidden");
@@ -1280,10 +1350,13 @@
           conn.on("data", (data) => onHostData(tempId, data));
           conn.on("close", () => {
             connections.delete(tempId);
+            if (lobbyJoined && lobbyJoined.has(tempId)) lobbyJoined.delete(tempId);
+            updateHostLobbyUI();
             logToConsole("client disconnected");
           });
         });
         peer.on("error", (e) => logToConsole("peer error: " + e));
+        updateHostLobbyUI();
       }
 
       async function setupOnlineJoin(roomCode) {
@@ -1322,11 +1395,35 @@
       function onHostData(tempConnId, data) {
         if (!data || typeof data !== "object") return;
         if (data.type === "hello") {
-          // assign this connection to a real player after game started
-          // We'll store on connection meta: desired name.
-          connections.get(tempConnId)._desiredName = data.name || "Player";
-          // ack
-          connections.get(tempConnId).send({ type: "hello_ack" });
+          const conn = connections.get(tempConnId);
+          if (!conn) return;
+          if (G) {
+            // game already started; reject late join
+            try { conn.send({ type: "room_closed" }); } catch {}
+            try { conn.close(); } catch {}
+            connections.delete(tempConnId);
+            if (lobbyJoined && lobbyJoined.has(tempConnId)) lobbyJoined.delete(tempConnId);
+            updateHostLobbyUI();
+            return;
+          }
+
+          const desired = String(data.name || "Player").trim().slice(0, 18) || "Player";
+          conn._desiredName = desired;
+
+          // accept into lobby (max 5 joiners => host + 5 = 6)
+          if (!conn._accepted) {
+            if (lobbyJoinCount() >= 5) {
+              try { conn.send({ type: "room_full" }); } catch {}
+              try { conn.close(); } catch {}
+              connections.delete(tempConnId);
+              return;
+            }
+            conn._accepted = true;
+            lobbyJoined.set(tempConnId, desired);
+            updateHostLobbyUI();
+          }
+
+          try { conn.send({ type: "hello_ack" }); } catch {}
           return;
         }
         if (data.type === "input") {
@@ -1354,7 +1451,32 @@
 
       function onClientData(conn, data) {
         if (!data || typeof data !== "object") return;
-        if (data.type === "hello_ack") return;
+        if (data.type === "hello_ack") {
+          setJoinStatus("জয়েন হয়েছে। হোস্ট গেম সেটআপ/স্টার্ট করলে আপনি স্বয়ংক্রিয়ভাবে ঢুকে যাবেন।", true);
+          return;
+        }
+        if (data.type === "room_full") {
+          setJoinStatus("", false);
+          if (btnJoin) btnJoin.disabled = false;
+          showModal({
+            title: "রুম পূর্ণ",
+            text: "এই রুমে ইতিমধ্যে সর্বোচ্চ প্লেয়ার জয়েন করেছে। অন্য রুম কোড ব্যবহার করুন।",
+            buttons: [{ label: "OK", value: true, kind: "primary" }],
+          });
+          try { conn.close(); } catch {}
+          return;
+        }
+        if (data.type === "room_closed") {
+          setJoinStatus("", false);
+          if (btnJoin) btnJoin.disabled = false;
+          showModal({
+            title: "রুম বন্ধ",
+            text: "হোস্ট ইতিমধ্যে গেম শুরু করেছে, এখন নতুন করে জয়েন করা যাবে না।",
+            buttons: [{ label: "OK", value: true, kind: "primary" }],
+          });
+          try { conn.close(); } catch {}
+          return;
+        }
         if (data.type === "assign") {
           myPlayerId = data.playerId;
           render();
@@ -1374,6 +1496,7 @@
         // We do it lazily when game exists.
         if (!G) return;
         for (const [tempId, conn] of connections.entries()) {
+          if (!conn._accepted) continue;
           if (conn._playerId) continue;
           // Assign to the next unassigned non-AI player excluding host
           const unassigned = G.players.filter((p) => !p.isAI && p.id !== myPlayerId);
@@ -1386,14 +1509,15 @@
           if (desired && desired.trim()) {
             candidate.name = desired.trim().slice(0, 18);
           }
-          conn.send({ type: "assign", playerId: candidate.id });
+          try { conn.send({ type: "assign", playerId: candidate.id }); } catch {}
         }
 
         // send per-player sanitized state
         for (const [, conn] of connections.entries()) {
+          if (!conn._accepted) continue;
           const pid = conn._playerId;
           if (!pid) continue;
-          conn.send({ type: "state", state: sanitizeStateFor(pid) });
+          try { conn.send({ type: "state", state: sanitizeStateFor(pid) }); } catch {}
         }
         // host also renders its own
         render();
@@ -2768,6 +2892,8 @@
         isHost = false;
         connections = new Map();
         pendingPromptResolvers = new Map();
+        lobbyJoined = new Map();
+        hostSetupOpened = false;
         peer = null;
 
         // prefill
@@ -2781,7 +2907,7 @@
           setupOnlineHost(code);
         }
         if (mode === "online_join") {
-          // nothing yet, wait start
+          setJoinStatus("", false);
         }
         render();
       }
@@ -2792,6 +2918,8 @@
         peer = null;
         connections = new Map();
         pendingPromptResolvers = new Map();
+        lobbyJoined = new Map();
+        hostSetupOpened = false;
         isHost = false;
         G = null;
         mode = null;
@@ -2891,6 +3019,38 @@
         }
       });
 
+      btnOpenSetup?.addEventListener("click", async () => {
+        if (mode !== "online_host") return;
+        if (lobbyJoinCount() < 1) {
+          await showModal({
+            title: "প্লেয়ার দরকার",
+            text: "কমপক্ষে ১ জন প্লেয়ার জয়েন না করলে গেম সেটআপ/স্টার্ট করা যাবে না।",
+            buttons: [{ label: "OK", value: true, kind: "primary" }],
+          });
+          return;
+        }
+        hostSetupOpened = true;
+        render();
+      });
+
+      btnJoin?.addEventListener("click", async () => {
+        if (mode !== "online_join") return;
+        const name = (inpName.value || "").trim();
+        if (!name) {
+          await showModal({ title: "নাম দরকার", text: "আপনার নাম লিখুন।", buttons: [{ label: "OK", value: true, kind: "primary" }] });
+          return;
+        }
+        const code = (inpRoom.value || "").trim().toUpperCase();
+        if (!code) {
+          await showModal({ title: "রুম কোড দরকার", text: "রুম কোড লিখুন।", buttons: [{ label: "OK", value: true, kind: "primary" }] });
+          return;
+        }
+        btnJoin.disabled = true;
+        setJoinStatus("সংযোগ হচ্ছে…", true);
+        await setupOnlineJoin(code);
+        setJoinStatus("জয়েন হয়েছে। হোস্ট গেম শুরু করলে আপনি স্বয়ংক্রিয়ভাবে ঢুকে যাবেন।", true);
+      });
+
       btnStart.onclick = async () => {
         const name = (inpName.value || "").trim();
         if (!name) {
@@ -2898,10 +3058,8 @@
           return;
         }
 
-        const total = Number(selCount.value || 3);
-        const names = (mode === "local" || mode === "ai") ? getLobbyNames(total) : null;
         const rolesPool = Array.from(lobbySelectedRoles);
-        if (mode !== "online_join" && rolesPool.length !== 5) {
+        if (rolesPool.length !== 5) {
           await showModal({
             title: "ক্যারেক্টার সিলেকশন",
             text: "খেলা শুরু করতে ঠিক ৫টি ক্যারেক্টার সিলেক্ট করতে হবে।",
@@ -2911,34 +3069,41 @@
         }
         if (mode === "local") {
           isHost = true;
+          const total = Number(selCount.value || 3);
+          const names = getLobbyNames(total);
           initNewGame({ totalPlayers: total, withAI: false, rolesPool, names });
           return;
         }
         if (mode === "ai") {
           isHost = true;
+          const total = Number(selCount.value || 3);
+          const names = getLobbyNames(total);
           const aiParams = { bluff: pct(aiBluff.value), challenge: pct(aiChallenge.value), aggression: pct(aiAggression.value) };
           initNewGame({ totalPlayers: total, withAI: true, aiParams, rolesPool, names });
           return;
         }
         if (mode === "online_host") {
           isHost = true;
-          // create game with humans only (AI off). Players will be assigned when clients connect.
-          initNewGame({ totalPlayers: total, withAI: false, rolesPool });
-          return;
-        }
-        if (mode === "online_join") {
-          const code = (inpRoom.value || "").trim().toUpperCase();
-          if (!code) {
-            await showModal({ title: "রুম কোড দরকার", text: "রুম কোড লিখুন।", buttons: [{ label: "OK", value: true, kind: "primary" }] });
+          if (!hostSetupOpened) {
+            await showModal({
+              title: "আগে সেটআপ খুলুন",
+              text: "আগে “গেম সেটআপ” চাপুন, তারপর ক্যারেক্টার পুল সিলেক্ট করে খেলা শুরু করুন।",
+              buttons: [{ label: "OK", value: true, kind: "primary" }],
+            });
             return;
           }
-          await setupOnlineJoin(code);
-          // waiting for host to start and assign state
-          await showModal({
-            title: "সংযোগ হচ্ছে…",
-            text: "হোস্ট গেম শুরু করলে আপনি স্বয়ংক্রিয়ভাবে ঢুকে যাবেন।",
-            buttons: [{ label: "ঠিক আছে", value: true, kind: "primary" }],
-          });
+          const joined = lobbyJoinCount();
+          if (joined < 1) {
+            await showModal({
+              title: "প্লেয়ার দরকার",
+              text: "কমপক্ষে ১ জন প্লেয়ার জয়েন না করলে খেলা শুরু হবে না।",
+              buttons: [{ label: "OK", value: true, kind: "primary" }],
+            });
+            return;
+          }
+          const total = clamp(joined + 1, 2, 6);
+          // create game with humans only (AI off). Players will be assigned when clients connect.
+          initNewGame({ totalPlayers: total, withAI: false, rolesPool });
           return;
         }
       };
