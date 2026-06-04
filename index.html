@@ -319,6 +319,30 @@
       .tag.bad{color:var(--bad); border-color:rgba(255,77,77,.4)}
       .tag.warn{color:var(--warn); border-color:rgba(246,176,30,.4)}
 
+      /* Online multiplayer menu (like reference screenshot) */
+      .onlineMenuWrap{width:100%; max-width:520px; margin:0 auto; padding-top:18vh;}
+      .onlineMenu{
+        padding:18px;
+        border-radius:18px;
+        background:rgba(10,16,30,.55);
+        border:1px solid rgba(120,140,190,.18);
+        box-shadow: 0 18px 70px rgba(0,0,0,.45);
+      }
+      .onlineMenuTop{display:flex; align-items:center; gap:10px; color:var(--muted); font-weight:900}
+      .onlineMenuTop .btnBackMini{
+        background:transparent; border:none; color:inherit;
+        font-weight:1000; cursor:pointer; padding:6px 6px;
+      }
+      .onlineMenuTitle{
+        text-align:center;
+        font-weight:1100;
+        font-size:22px;
+        margin:10px 0 14px 0;
+        letter-spacing:.3px;
+        color:var(--warn);
+      }
+      .btn.big{padding:14px 16px; border-radius:16px; font-size:15px; font-weight:1100}
+
       /* Lobby role picker */
       .rolePick{
         display:flex;
@@ -375,13 +399,28 @@
           <div class="grid home card" style="gap:12px;">
             <button class="btn green" data-mode="local">🟢 পাস-এন্ড-প্লে (এক ডিভাইস)</button>
             <button class="btn blue" data-mode="ai">🔵 AI মোড (আপনি বনাম বট)</button>
-            <button class="btn dark" data-mode="online_host">⚫ অনলাইন ম্যাচ হোস্ট</button>
-            <button class="btn gray" data-mode="online_join">🔗 কোড দিয়ে যোগ দিন</button>
+            <button class="btn dark" data-mode="online_menu">🌐 অনলাইন মাল্টিপ্লেয়ার</button>
             <div id="offline-note" class="notice hidden">
               আপনি এখন অফলাইন। ইন্টারনেট ছাড়াই <b>Local</b> এবং <b>AI</b> মোড খেলতে পারবেন। অনলাইন মোড চালাতে ইন্টারনেট (ডাটা) লাগবে।
             </div>
             <div class="notice">
               নোট: অনলাইন মোডে PeerJS ব্যবহার করা হয়েছে। Render-এ Node সার্ভার (PeerJS signaling + static hosting) ডিপ্লয় করলে নির্ভরযোগ্যভাবে মাল্টিপ্লেয়ার চলবে। HTTPS/ইন্টারনেট দরকার।
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ONLINE MENU -->
+      <section id="screen-online" class="hidden">
+        <div class="onlineMenuWrap">
+          <div class="onlineMenu">
+            <div class="onlineMenuTop">
+              <button id="btn-online-home" class="btnBackMini">← বাড়ি</button>
+            </div>
+            <div class="onlineMenuTitle">অনলাইন মাল্টিপ্লেয়ার</div>
+            <div class="grid" style="grid-template-columns:1fr; gap:12px;">
+              <button id="btn-online-create" class="btn big primary">নতুন রুম তৈরি করুন</button>
+              <button id="btn-online-join-menu" class="btn big">রুমে যোগ দিন</button>
             </div>
           </div>
         </div>
@@ -648,6 +687,7 @@
       const screenHome = $("screen-home");
       const screenLobby = $("screen-lobby");
       const screenGame = $("screen-game");
+      const screenOnline = $("screen-online");
 
       const netPill = $("net-pill");
       const btnHome = $("btn-home");
@@ -655,6 +695,9 @@
       const btnRules = $("btn-rules");
       const btnBack = $("btn-back");
       const btnStart = $("btn-start");
+      const btnOnlineHome = $("btn-online-home");
+      const btnOnlineCreate = $("btn-online-create");
+      const btnOnlineJoinMenu = $("btn-online-join-menu");
       const inpName = $("inp-name");
       const selCount = $("sel-count");
 
@@ -1153,14 +1196,15 @@
 
         // screen toggles
         screenHome.classList.toggle("hidden", mode !== null);
-        screenLobby.classList.toggle("hidden", mode === null || G !== null);
+        screenOnline?.classList.toggle("hidden", mode !== "online_menu");
+        screenLobby.classList.toggle("hidden", mode === null || mode === "online_menu" || G !== null);
         screenGame.classList.toggle("hidden", !G);
 
         // lobby conditional panels
         aiSettings.classList.toggle("hidden", mode !== "ai");
         onlineHostPanel.classList.toggle("hidden", mode !== "online_host");
         onlineJoinPanel.classList.toggle("hidden", mode !== "online_join");
-        const isOnline = !!(mode && mode.startsWith("online"));
+        const isOnline = mode === "online_host" || mode === "online_join";
         const canShowSetup = !isOnline || (mode === "online_host" && hostSetupOpened);
         // online mode: total players determined by who joined (host + joiners)
         $("row-count").classList.toggle("hidden", isOnline);
@@ -1172,8 +1216,8 @@
         if (mode !== null && G === null && canShowSetup) renderRolePicker();
         if (mode === "online_host" && G === null) updateHostLobbyUI();
 
-        netPill.classList.toggle("hidden", !(mode && mode.startsWith("online")));
-        if (mode && mode.startsWith("online")) netPill.textContent = "🌐 অনলাইন";
+        netPill.classList.toggle("hidden", !isOnline);
+        if (isOnline) netPill.textContent = "🌐 অনলাইন";
 
         if (!G) return;
 
@@ -2974,6 +3018,7 @@
       // Event wiring
       // ------------------------------------------------------------
       btnHome.onclick = () => resetAll();
+      btnOnlineHome?.addEventListener("click", () => resetAll());
       btnRules.onclick = () => showRules();
       btnBack.onclick = () => resetAll();
       btnNewMatch?.addEventListener("click", () => resetAll());
@@ -3005,6 +3050,10 @@
       document.querySelectorAll("[data-mode]").forEach((btn) => {
         btn.addEventListener("click", () => showLobby(btn.getAttribute("data-mode")));
       });
+
+      // Online menu buttons (create/join -> goes to lobby with proper mode)
+      btnOnlineCreate?.addEventListener("click", () => showLobby("online_host"));
+      btnOnlineJoinMenu?.addEventListener("click", () => showLobby("online_join"));
 
       btnCopy?.addEventListener("click", async () => {
         try {
@@ -3117,16 +3166,11 @@
 
       function updateConnectivityUI() {
         const online = navigator.onLine;
-        const hostBtn = document.querySelector('[data-mode="online_host"]');
-        const joinBtn = document.querySelector('[data-mode="online_join"]');
+        const onlineBtn = document.querySelector('[data-mode="online_menu"]');
         const note = $("offline-note");
-        if (hostBtn) {
-          hostBtn.disabled = !online;
-          hostBtn.title = online ? "" : "অফলাইন অবস্থায় অনলাইন ম্যাচ হোস্ট করা যাবে না";
-        }
-        if (joinBtn) {
-          joinBtn.disabled = !online;
-          joinBtn.title = online ? "" : "অফলাইন অবস্থায় অনলাইন ম্যাচে যোগ দেওয়া যাবে না";
+        if (onlineBtn) {
+          onlineBtn.disabled = !online;
+          onlineBtn.title = online ? "" : "অফলাইন অবস্থায় অনলাইন মাল্টিপ্লেয়ার চালানো যাবে না";
         }
         if (note) note.classList.toggle("hidden", online);
       }
