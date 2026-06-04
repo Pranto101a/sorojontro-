@@ -898,6 +898,7 @@
       let onlineRoomCode = null;
       let onlineSelfName = "";
       let clientLobbyInfo = null; // join side: {roomCode, hostName, joinNames[]}
+      let autoReconnect = true;
 
       // লবি রোল সিলেকশন (১০ থেকে ৫)
       let lobbySelectedRoles = new Set(DEFAULT_ROLE_POOL);
@@ -1002,6 +1003,107 @@
           }
         } catch {}
         return Math.random().toString(16).slice(2) + "-" + Date.now().toString(16);
+      }
+
+      // ------------------------------------------------------------
+      // Session persistence (reload-friendly)
+      // ------------------------------------------------------------
+      const SAVE_KEY = "shorojontro_save_v1";
+      const RID_KEY = "shorojontro_rid_v1";
+
+      function getReconnectId() {
+        try {
+          const existing = localStorage.getItem(RID_KEY);
+          if (existing) return existing;
+          const rid = uid();
+          localStorage.setItem(RID_KEY, rid);
+          return rid;
+        } catch {
+          return uid();
+        }
+      }
+
+      function saveSession() {
+        try {
+          // Only save when there is a game or active online room
+          if (!G && !(mode && mode.startsWith("online") && onlineRoomCode)) return;
+          const snapshot = {
+            v: 1,
+            ts: Date.now(),
+            mode,
+            isHost,
+            myPlayerId,
+            G,
+            onlineRoomCode: onlineRoomCode || null,
+            onlineHostStage: onlineHostStage || null,
+            onlineJoinStage: onlineJoinStage || null,
+            hostSetupOpened: !!hostSetupOpened,
+            selfName: (inpName?.value || "").trim(),
+          };
+          localStorage.setItem(SAVE_KEY, JSON.stringify(snapshot));
+        } catch {
+          // ignore storage errors
+        }
+      }
+
+      function clearSavedSession() {
+        try { localStorage.removeItem(SAVE_KEY); } catch {}
+      }
+
+      async function tryRestoreSession() {
+        try {
+          const raw = localStorage.getItem(SAVE_KEY);
+          if (!raw) return false;
+          const s = JSON.parse(raw);
+          if (!s || s.v !== 1) return false;
+
+          // Restore local/AI game fully (works offline).
+          if ((s.mode === "local" || s.mode === "ai") && s.G) {
+            mode = s.mode;
+            isHost = true;
+            G = s.G;
+            myPlayerId = s.myPlayerId || (s.G.players && s.G.players[0] ? s.G.players[0].id : null);
+            lastTurnId = null;
+            // Ensure modal is hidden after reload
+            try { hideModal(); } catch {}
+            render();
+            // resume turn loop
+            setTimeout(() => tick(), 250);
+            return true;
+          }
+
+          // Restore online host (best-effort): recreate room with same code and continue the match.
+          if (s.mode === "online_host" && s.onlineRoomCode) {
+            showLobby("online_host");
+            // Restore UI flags
+            hostSetupOpened = !!s.hostSetupOpened;
+            onlineHostStage = s.onlineHostStage || "create";
+            // Restore game state (authoritative)
+            G = s.G || null;
+            myPlayerId = s.myPlayerId || (s.G?.players && s.G.players[0] ? s.G.players[0].id : null);
+            lastTurnId = null;
+            // Recreate peer room with the same room code
+            await setupOnlineHost(String(s.onlineRoomCode || "").trim().toUpperCase());
+            try { hideModal(); } catch {}
+            render();
+            if (G) setTimeout(() => tick(), 250);
+            return true;
+          }
+
+          // Restore online join (best-effort): auto re-join same room.
+          if (s.mode === "online_join" && s.onlineRoomCode) {
+            showLobby("online_join");
+            if (inpName && s.selfName) inpName.value = s.selfName;
+            if (inpRoom) inpRoom.value = String(s.onlineRoomCode || "");
+            if (btnJoin) btnJoin.disabled = true;
+            setJoinStatus("রিলোডের পরে আবার সংযোগ হচ্ছে…", true);
+            await setupOnlineJoin(String(s.onlineRoomCode || "").trim().toUpperCase());
+            return true;
+          }
+        } catch {
+          // ignore
+        }
+        return false;
       }
 
       // Random helper (prefer crypto RNG; fallback Math.random)
@@ -1705,20 +1807,45 @@
         onlineRoomCode = roomCode;
         setRoomStatus("pending", "রুম স্ট্যাটাস: সংযোগ হচ্ছে…");
         await loadPeerJs();
+        // Cleanup any old peer before re-joining
+        try { if (peer) peer.destroy(); } catch {}
         peer = new Peer(undefined, peerClientConfig());
         await new Promise((resolve) => peer.on("open", resolve));
         const conn = peer.connect(roomCode);
         conn.on("open", () => {
           logToConsole("connected to host");
-          conn.send({ type: "hello", name: inpName.value.trim() || "Player" });
+          conn.send({ type: "hello", name: inpName.value.trim() || "Player", rid: getReconnectId() });
         });
         conn.on("data", (data) => onClientData(conn, data));
         conn.on("error", (e) => logToConsole("conn error: " + e));
+        conn.on("close", () => {
+          // Host রিলোড/ডিসকানেক্ট হলে ক্লায়েন্ট অটো রিকানেক্ট করবে (রুম কোড একই থাকে)
+          if (!autoReconnect) return;
+          if (mode !== "online_join") return;
+          const code = String(onlineRoomCode || "").trim().toUpperCase();
+          if (!code) return;
+          setRoomStatus("pending", "রুম স্ট্যাটাস: পুনরায় সংযোগ হচ্ছে…");
+          setJoinStatus("হোস্ট সংযোগ বিচ্ছিন্ন — আবার চেষ্টা হচ্ছে…", true);
+          let tries = 0;
+          const retry = async () => {
+            if (!autoReconnect) return;
+            if (mode !== "online_join") return;
+            tries += 1;
+            try {
+              await setupOnlineJoin(code);
+              setJoinStatus("পুনরায় সংযুক্ত ✅", true);
+            } catch {
+              if (tries < 10) setTimeout(retry, Math.min(5000, 800 + tries * 400));
+            }
+          };
+          setTimeout(retry, 900);
+        });
         peer.on("error", (e) => {
           logToConsole("peer error: " + e);
           setRoomStatus("error", "রুম স্ট্যাটাস: সংযোগ সমস্যা ❌");
         });
         connections.set("host", conn);
+        saveSession();
       }
 
       function logToConsole(s) {
@@ -1742,8 +1869,24 @@
         if (data.type === "hello") {
           const conn = connections.get(tempConnId);
           if (!conn) return;
+          const rid = data.rid ? String(data.rid) : null;
+          conn._rid = rid;
+
           if (G) {
-            // game already started; reject late join
+            // Game already started:
+            // allow reconnect ONLY if rid matches an existing player.
+            if (rid) {
+              const existing = G.players.find((p) => !p.isAI && p.id !== myPlayerId && p._rid === rid);
+              if (existing) {
+                conn._accepted = true;
+                conn._playerId = existing.id;
+                try { conn.send({ type: "hello_ack" }); } catch {}
+                try { conn.send({ type: "assign", playerId: existing.id }); } catch {}
+                try { conn.send({ type: "state", state: sanitizeStateFor(existing.id) }); } catch {}
+                return;
+              }
+            }
+            // otherwise reject late join
             try { conn.send({ type: "room_closed" }); } catch {}
             try { conn.close(); } catch {}
             connections.delete(tempConnId);
@@ -1801,6 +1944,7 @@
         if (data.type === "hello_ack") {
           setJoinStatus("জয়েন হয়েছে। হোস্ট গেম সেটআপ/স্টার্ট করলে আপনি স্বয়ংক্রিয়ভাবে ঢুকে যাবেন।", true);
           setRoomStatus("open", "রুম স্ট্যাটাস: সংযুক্ত ✅");
+          saveSession();
           return;
         }
         if (data.type === "lobby") {
@@ -1848,16 +1992,21 @@
         if (data.type === "assign") {
           myPlayerId = data.playerId;
           render();
+          saveSession();
           return;
         }
         if (data.type === "state") {
           G = data.state;
           render();
+          saveSession();
           return;
         }
       }
 
       function broadcastState() {
+        // Always persist current state for reload-resume.
+        saveSession();
+
         if (!mode || !mode.startsWith("online")) return;
         if (!isHost) return;
         // assign connection -> player if not assigned (first time game started)
@@ -1866,12 +2015,23 @@
         for (const [tempId, conn] of connections.entries()) {
           if (!conn._accepted) continue;
           if (conn._playerId) continue;
+          // Reconnect support: if client has rid and a matching player exists, re-assign.
+          if (conn._rid) {
+            const match = G.players.find((p) => !p.isAI && p.id !== myPlayerId && p._rid === conn._rid);
+            if (match) {
+              conn._playerId = match.id;
+              try { conn.send({ type: "assign", playerId: match.id }); } catch {}
+              continue;
+            }
+          }
+
           // Assign to the next unassigned non-AI player excluding host
           const unassigned = G.players.filter((p) => !p.isAI && p.id !== myPlayerId);
           const already = new Set([...connections.values()].map((c) => c._playerId).filter(Boolean));
           const candidate = unassigned.find((p) => !already.has(p.id));
           if (!candidate) continue;
           conn._playerId = candidate.id;
+          if (conn._rid) candidate._rid = conn._rid;
           // Optionally rename player using desired name
           const desired = conn._desiredName;
           if (desired && desired.trim()) {
@@ -1896,6 +2056,8 @@
         // hide others' hands
         for (const p of S.players) {
           if (p.id !== viewPid) p.hand = new Array(p.hand.length).fill("?");
+          // never leak reconnect id
+          try { delete p._rid; } catch {}
         }
         // awaitingInput is only for the viewPid
         if (S.awaitingInput && S.awaitingInput.playerId !== viewPid) {
@@ -1926,9 +2088,11 @@
           if (conn && conn.open) {
             conn.send({ type: "input", playerId: myPlayerId, value });
           }
+          saveSession();
           return;
         }
         receiveInput(value);
+        saveSession();
       }
 
       // ------------------------------------------------------------
@@ -3555,6 +3719,10 @@
       }
 
       function resetAll() {
+        // User explicitly leaving → clear saved session so reload won't resume.
+        clearSavedSession();
+        autoReconnect = false;
+
         // Online Host: হোস্ট বের হলে রুম/সার্ভার অটো ক্লোজ হবে (সবাইকে জানিয়ে)
         if (mode === "online_host") {
           try {
@@ -3883,9 +4051,21 @@
       window.addEventListener("online", updateConnectivityUI);
       window.addEventListener("offline", updateConnectivityUI);
 
-      // initial UI
-      render();
-      updateConnectivityUI();
+      // Boot:
+      // প্রথমে সেভড সেশন রিস্টোর করার চেষ্টা করি যাতে রিলোড দিলে হোমপেজে না গিয়ে
+      // আগের স্ক্রিনেই থাকা যায়।
+      (async () => {
+        const restored = await tryRestoreSession();
+        if (!restored) render();
+        updateConnectivityUI();
+      })();
+
+      // Save state on refresh/close; so reload can resume.
+      window.addEventListener("beforeunload", () => {
+        saveSession();
+      });
+
+      // Note: restore is handled in boot() above.
     </script>
   </body>
 </html>
