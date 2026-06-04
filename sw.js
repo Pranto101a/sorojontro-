@@ -1,33 +1,38 @@
-const CACHE = "shorojontro-v2";
+const CACHE = "shorojontro-v3";
+
+// Works on root deploy (Render) and subpath deploy (GitHub Pages)
+const SCOPE_URL = new URL(self.registration.scope);
+const abs = (p) => new URL(p, SCOPE_URL).toString();
+const INDEX_URL = abs("index.html");
 
 // Precache core app shell + assets for offline Local/AI play.
 // (Online multiplayer still requires internet.)
 const PRECACHE = [
-  "/",
-  "/index.html",
-  "/manifest.webmanifest",
-  "/sw.js",
+  abs("./"),
+  INDEX_URL,
+  abs("manifest.webmanifest"),
+  abs("sw.js"),
 
   // backgrounds
-  "/assets/bg.jpg",
-  "/assets/home_bg.jpg",
-  "/assets/game_bg.jpg",
-  "/assets/pass_bg.jpg",
+  abs("assets/bg.jpg"),
+  abs("assets/home_bg.jpg"),
+  abs("assets/game_bg.jpg"),
+  abs("assets/pass_bg.jpg"),
 
   // icons
-  "/icons/icon-192.png",
-  "/icons/icon-512.png",
+  abs("icons/icon-192.png"),
+  abs("icons/icon-512.png"),
 
   // role images
-  "/images/bir_bikrom.jpg",
-  "/images/mamdo_homdo.jpg",
-  "/images/brohmodotto.jpg",
-  "/images/betal.jpg",
-  "/images/petuk_chondro.jpg",
-  "/images/arun.jpg",
-  "/images/kalu_dakat.jpg",
-  "/images/chichke_chor.jpg",
-  "/images/nantu_miah.jpg",
+  abs("images/bir_bikrom.jpg"),
+  abs("images/mamdo_homdo.jpg"),
+  abs("images/brohmodotto.jpg"),
+  abs("images/betal.jpg"),
+  abs("images/petuk_chondro.jpg"),
+  abs("images/arun.jpg"),
+  abs("images/kalu_dakat.jpg"),
+  abs("images/chichke_chor.jpg"),
+  abs("images/nantu_miah.jpg"),
 ];
 
 self.addEventListener("install", (event) => {
@@ -62,10 +67,10 @@ self.addEventListener("fetch", (event) => {
       fetch(req)
         .then((res) => {
           const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put("/index.html", copy));
+          caches.open(CACHE).then((c) => c.put(INDEX_URL, copy));
           return res;
         })
-        .catch(() => caches.match("/index.html"))
+        .catch(() => caches.match(INDEX_URL))
     );
     return;
   }

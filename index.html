@@ -3551,7 +3551,8 @@
       // PWA: service worker (Android install-friendly)
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
-          navigator.serviceWorker.register("/sw.js").catch(() => {});
+          // GitHub Pages / subpath friendly
+          navigator.serviceWorker.register("./sw.js").catch(() => {});
         });
       }
 
