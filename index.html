@@ -993,11 +993,40 @@
       updateSoundButton();
 
       function uid() {
+        // Better uniqueness + randomness (crypto যখন পাওয়া যায়)
+        try {
+          if (typeof crypto !== "undefined" && crypto.getRandomValues) {
+            const a = new Uint32Array(3);
+            crypto.getRandomValues(a);
+            return `${a[0].toString(16)}${a[1].toString(16)}-${Date.now().toString(16)}-${a[2].toString(16)}`;
+          }
+        } catch {}
         return Math.random().toString(16).slice(2) + "-" + Date.now().toString(16);
       }
+
+      // Random helper (prefer crypto RNG; fallback Math.random)
+      function randInt(n) {
+        n = Math.floor(Number(n) || 0);
+        if (n <= 0) return 0;
+        try {
+          if (typeof crypto !== "undefined" && crypto.getRandomValues) {
+            // Rejection sampling to avoid modulo bias
+            const max = 0xFFFFFFFF;
+            const lim = max - (max % n);
+            const buf = new Uint32Array(1);
+            while (true) {
+              crypto.getRandomValues(buf);
+              const x = buf[0];
+              if (x < lim) return x % n;
+            }
+          }
+        } catch {}
+        return Math.floor(Math.random() * n);
+      }
+
       function shuffle(arr) {
         for (let i = arr.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
+          const j = randInt(i + 1);
           [arr[i], arr[j]] = [arr[j], arr[i]];
         }
         return arr;
@@ -1969,16 +1998,22 @@
         return false;
       }
 
-      function setAwaiting(playerId, hint, options) {
+      function setAwaiting(playerId, hint, options, cfg) {
+        cfg = cfg || {};
+        const noLocalPass = !!cfg.noLocalPass;
         G.awaitingInput = { playerId, hint, options };
 
         // লোকাল (পাস-এন্ড-প্লে) মোডে:
         // আগে মাই-ভিউয়ার আপডেট করে দিই—যাতে মোডাল/অডিও/ব্রাউজার ইস্যু হলেও
         // অ্যাকশন বাটনগুলো দেখা যায় এবং গেম আটকে না থাকে।
-        const needPassNotice = mode === "local" && myPlayerId !== playerId;
-        if (needPassNotice) {
+        const viewerChanged = mode === "local" && myPlayerId !== playerId;
+        if (viewerChanged) {
           myPlayerId = playerId;
         }
+
+        // "ডিভাইস পাস করুন" নোটিস/মোডাল—কিছু জায়গায় (যেমন: অরুণের কয়েন পিক)
+        // এটি দেখানো প্রয়োজন নেই।
+        const needPassNotice = viewerChanged && !noLocalPass;
 
         broadcastState();
         render();
@@ -2027,6 +2062,8 @@
         if (p.stage === "reveal") return onRevealChoice(val);
         if (p.stage === "exchange_pick") return onExchangePick(val);
         if (p.stage === "mamdo_claims") return onMamdoClaim(val);
+        if (p.stage === "mamdo_claim_after_pass") return onMamdoClaimAfterPass(val);
+        if (p.stage === "mamdo_settle") return onMamdoSettle(val);
         if (p.stage === "steal_all_block") return onStealAllBlock(val);
         if (p.stage === "arun_pay") return onArunPayChoice(val);
         if (p.stage === "tax_pick") return onTaxPick(val);
@@ -2357,6 +2394,18 @@
         if (G.awaitingInput && G.awaitingInput.playerId !== expected) return;
         clearAwaiting();
         if (!v.yes) {
+          // মামদো-হুমদো: কেউ যদি "পাস" করে, সাথে সাথে তার কাছে "দাবি করব" অপশন দেখাই,
+          // তারপর পরবর্তী জনের কাছে যাব।
+          if (p?.action?.type === "mamdo") {
+            p.stage = "mamdo_claim_after_pass";
+            p.mamdo = p.mamdo || { claimants: [] };
+            p.mamdo._lastPasser = expected;
+            setAwaiting(expected, "মামদো-হুমদো: আপনি কি ১ কয়েন দাবি করবেন?", [
+              { label: "দাবি করব", value: { t: "mamdo_claim2", yes: true }, kind: "warn" },
+              { label: "পাস", value: { t: "mamdo_claim2", yes: false }, kind: "" },
+            ]);
+            return;
+          }
           offerNextChallenge();
           return;
         }
@@ -2584,10 +2633,14 @@
         if (p.action.type === "mamdo") {
           actor.coins += 4;
           log(`💰 ${actor.name} মামদো-হুমদো দিয়ে ৪ কয়েন পেয়েছে।`);
-          // MVP: অন্যরা চাইলে "আমার কাছে মামদো-হুমদো আছে" বলে ১ কয়েন গিফট নিতে পারে (চ্যালেঞ্জ ছাড়া)
-          p.stage = "mamdo_claims";
-          p.mamdo = { queue: buildChallengeQueue(actor.id) };
-          askNextMamdoClaim();
+          // যারা "দাবি করব" চাপবে—তাদের তালিকা অ্যাক্টরের সামনে দেখানো হবে এবং
+          // অ্যাক্টর চাইলে তাদেরকে চ্যালেঞ্জ করতে পারবে।
+          p.mamdo = p.mamdo || { claimants: [] };
+          if (p.mamdo?.claimants?.length) {
+            openMamdoSettle();
+          } else {
+            endTurn();
+          }
           return;
         }
         if (p.action.type === "steal") {
@@ -2653,7 +2706,8 @@
           for (let i = 0; i <= maxExtra; i++) {
             opts.push({ label: `${i} অতিরিক্ত কার্ড (খরচ ${i}🪙)`, value: { t: "arun_pay", extra: i }, kind: i === 0 ? "" : "warn" });
           }
-          setAwaiting(actor.id, "অরুণ: কত কয়েন দিয়ে আরও কার্ড দেখবেন?", opts);
+          // এখানে "ডিভাইস পাস করুন" পপ-আপ দেখানো লাগবে না (আপনার অনুরোধ অনুযায়ী)।
+          setAwaiting(actor.id, "অরুণ: কত কয়েন দিয়ে আরও কার্ড দেখবেন?", opts, { noLocalPass: true });
           return;
         }
 
@@ -2684,7 +2738,12 @@
         const actor = getPlayer(p.actorId);
         const next = p.mamdo.queue.shift();
         if (!next) {
-          endTurn();
+          // সব প্লেয়ার "দাবি/পাস" দিয়েছে। এখন অ্যাক্টর চাইলে দাবিদারদের চ্যালেঞ্জ করবে।
+          if (p.mamdo?.claimants?.length) {
+            openMamdoSettle();
+          } else {
+            endTurn();
+          }
           return;
         }
         const pl = getPlayer(next);
@@ -2707,12 +2766,130 @@
           return;
         }
         if (v.yes) {
-          const give = Math.min(1, actor.coins);
-          actor.coins -= give;
-          claimant.coins += give;
-          log(`🎁 ${claimant.name} “মামদো-হুমদো” দাবি করেছে — ${actor.name} তাকে ${give} কয়েন দিয়েছে।`);
+          p.mamdo = p.mamdo || { queue: [], claimants: [] };
+          if (!p.mamdo.claimants.includes(claimantId)) p.mamdo.claimants.push(claimantId);
+          log(`🙋 ${claimant.name} “মামদো-হুমদো” দাবি করে ১ কয়েন নিতে চায়।`);
         }
         askNextMamdoClaim();
+      }
+
+      function onMamdoClaimAfterPass(v) {
+        const p = G.pending;
+        const claimantId = p?.mamdo?._lastPasser || G.awaitingInput?.playerId;
+        const claimant = getPlayer(claimantId);
+        if (G.awaitingInput && claimantId && G.awaitingInput.playerId !== claimantId) return;
+        clearAwaiting();
+        if (!claimant) {
+          p.mamdo._lastPasser = null;
+          // পরের জনের কাছে ফিরে যাই
+          p.stage = "challenge_offer";
+          offerNextChallenge();
+          return;
+        }
+        // এই স্টেজে actor নয়, যে প্লেয়ার পাস করেছিল সে রেসপন্স দেবে
+        if (v.yes) {
+          p.mamdo = p.mamdo || { claimants: [] };
+          if (!p.mamdo.claimants.includes(claimantId)) p.mamdo.claimants.push(claimantId);
+          log(`🙋 ${claimant.name} “মামদো-হুমদো” দাবি করে ১ কয়েন নিতে চায়।`);
+        }
+        p.mamdo._lastPasser = null;
+        // এখন পরবর্তী জনের কাছে চ্যালেঞ্জ অফার কন্টিনিউ
+        p.stage = "challenge_offer";
+        offerNextChallenge();
+      }
+
+      function openMamdoSettle() {
+        const p = G.pending;
+        const actor = getPlayer(p.actorId);
+        p.stage = "mamdo_settle";
+
+        const claimants = (p.mamdo?.claimants || [])
+          .map((id) => getPlayer(id))
+          .filter((pl) => pl && pl.hand.length > 0);
+
+        // সেফটি: যদি সবাই আউট হয়ে যায়
+        if (!claimants.length) {
+          p.mamdo.claimants = [];
+          endTurn();
+          return;
+        }
+
+        const opts = [];
+        for (const c of claimants) {
+          opts.push({
+            label: `চ্যালেঞ্জ: ${c.name}`,
+            value: { t: "mamdo_settle", a: "challenge", pid: c.id },
+            kind: "danger",
+          });
+        }
+        opts.push({ label: "সবাইকে পেমেন্ট দিন", value: { t: "mamdo_settle", a: "pay_all" }, kind: "warn" });
+
+        setAwaiting(actor.id, "মামদো-হুমদো: কারা ১ কয়েন দাবি করেছে? (চাইলে চ্যালেঞ্জ করুন)", opts);
+      }
+
+      function removeMamdoClaimant(pid) {
+        const p = G.pending;
+        if (!p?.mamdo?.claimants) return;
+        p.mamdo.claimants = p.mamdo.claimants.filter((x) => x !== pid);
+      }
+
+      function payMamdoGift(actor, claimant) {
+        const give = Math.min(1, actor.coins);
+        actor.coins -= give;
+        claimant.coins += give;
+        log(`🎁 ${claimant.name} “মামদো-হুমদো” দাবি করেছে — ${actor.name} তাকে ${give} কয়েন দিয়েছে।`);
+      }
+
+      function onMamdoSettle(v) {
+        const p = G.pending;
+        const actor = getPlayer(p.actorId);
+        if (G.awaitingInput && G.awaitingInput.playerId !== actor.id) return;
+        clearAwaiting();
+
+        const action = v?.a;
+        if (action === "end") {
+          endTurn();
+          return;
+        }
+
+        if (action === "pay_all") {
+          const ids = (p.mamdo?.claimants || []).slice();
+          for (const pid of ids) {
+            const claimant = getPlayer(pid);
+            if (!claimant || claimant.hand.length === 0) { removeMamdoClaimant(pid); continue; }
+            payMamdoGift(actor, claimant);
+            removeMamdoClaimant(pid);
+          }
+          endTurn();
+          return;
+        }
+
+        if (action === "challenge") {
+          const claimantId = v.pid;
+          const claimant = getPlayer(claimantId);
+          if (!claimant || claimant.hand.length === 0) {
+            removeMamdoClaimant(claimantId);
+            if (p.mamdo?.claimants?.length) openMamdoSettle();
+            else endTurn();
+            return;
+          }
+
+          log(`🛑 ${actor.name} ${claimant.name}-কে “মামদো-হুমদো” দাবিতে চ্যালেঞ্জ করেছে!`);
+          resolveChallenge(actor.id, claimantId, "মামদো-হুমদো", /*onTruth*/ () => {
+            // claimant সত্যি হলে: অ্যাক্টর ১ লাইফ হারিয়েছে; তারপর ১ কয়েন গিফট
+            payMamdoGift(actor, claimant);
+            removeMamdoClaimant(claimantId);
+            if (p.mamdo?.claimants?.length) openMamdoSettle();
+            else endTurn();
+          }, /*onLie*/ () => {
+            // claimant মিথ্যা হলে: claimant ১ লাইফ হারিয়েছে; কয়েন পাবে না
+            log(`✅ ${actor.name} চ্যালেঞ্জে জিতেছে — ${claimant.name} ১ কয়েন পাবে না।`);
+            removeMamdoClaimant(claimantId);
+            if (p.mamdo?.claimants?.length) openMamdoSettle();
+            else endTurn();
+          });
+          return;
+        }
       }
 
       function askNextStealAllBlock() {
@@ -2777,8 +2954,8 @@
           return;
         }
 
-        // লোকাল প্রাইভেসি
-        if (mode === "local") await ensureLocalViewer(actor.id);
+        // লোকাল প্রাইভেসি: ভিউয়ার যদি ইতিমধ্যে অ্যাক্টর হয়, তাহলে "ডিভাইস পাস" লাগবে না
+        if (mode === "local" && myPlayerId !== actor.id) await ensureLocalViewer(actor.id);
 
         const pick = await showModal({
           title: "অরুণ: ডেক কার্ড",
@@ -3171,6 +3348,23 @@
           const doClaim = aiShould(35);
           const pick = opts.find((o) => o.value?.t === "mamdo_claim" && o.value.yes === doClaim)?.value
             || opts.find((o) => o.value?.t === "mamdo_claim" && o.value.yes === false)?.value;
+          receiveInput(pick);
+          return;
+        }
+
+        // Mamdo claim after pass (challenge stage): AI বেশিরভাগ সময় পাস করবে
+        if (opts.length && opts[0].value?.t === "mamdo_claim2") {
+          const doClaim = aiShould(25);
+          const pick = opts.find((o) => o.value?.t === "mamdo_claim2" && o.value.yes === doClaim)?.value
+            || opts.find((o) => o.value?.t === "mamdo_claim2" && o.value.yes === false)?.value;
+          receiveInput(pick);
+          return;
+        }
+
+        // Mamdo settle (actor side): AI সাধারণত সবাইকে পেমেন্ট দেবে (চ্যালেঞ্জ করবে না)
+        if (opts.length && opts[0].value?.t === "mamdo_settle") {
+          const pick = opts.find((o) => o.value?.t === "mamdo_settle" && o.value.a === "pay_all")?.value
+            || opts.find((o) => o.value?.t === "mamdo_settle")?.value;
           receiveInput(pick);
           return;
         }
