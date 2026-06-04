@@ -1836,8 +1836,11 @@
           if (btnJoin) btnJoin.disabled = false;
           showModal({
             title: "রুম বন্ধ",
-            text: "হোস্ট ইতিমধ্যে গেম শুরু করেছে, এখন নতুন করে জয়েন করা যাবে না।",
+            text: "হোস্ট রুম বন্ধ করেছে (বা গেম শুরু হয়েছে) — এখন নতুন করে জয়েন করা যাবে না।",
             buttons: [{ label: "OK", value: true, kind: "primary" }],
+          }).then(() => {
+            // host রুম বন্ধ করলে ক্লায়েন্টকে অটো হোমে পাঠাই
+            resetAll();
           });
           try { conn.close(); } catch {}
           return;
@@ -1904,6 +1907,21 @@
       // Send input from UI to host/local engine
       function sendInput(value) {
         if (mode && mode.startsWith("online") && !isHost) {
+          // Exchange selection (পেটুক চন্দ্র): UI/সিলেক্টরটা join প্লেয়ারের ডিভাইসেই খুলতে হবে,
+          // তারপর ফলাফল host-এ পাঠাতে হবে।
+          if (value && value.t === "exchange_open") {
+            (async () => {
+              try {
+                clearAwaiting();
+                const keepIdxs = await openExchangePicker();
+                const conn = connections.get("host");
+                if (conn && conn.open) {
+                  conn.send({ type: "input", playerId: myPlayerId, value: { t: "exchange_keep", keepIdxs } });
+                }
+              } catch {}
+            })();
+            return;
+          }
           const conn = connections.get("host");
           if (conn && conn.open) {
             conn.send({ type: "input", playerId: myPlayerId, value });
@@ -2066,6 +2084,8 @@
         if (p.stage === "mamdo_settle") return onMamdoSettle(val);
         if (p.stage === "steal_all_block") return onStealAllBlock(val);
         if (p.stage === "arun_pay") return onArunPayChoice(val);
+        if (p.stage === "arun_pick") return onArunPick(val);
+        if (p.stage === "arun_swap") return onArunSwap(val);
         if (p.stage === "tax_pick") return onTaxPick(val);
         if (p.stage === "betal_bribe") return onBetalBribe(val);
       }
@@ -2954,6 +2974,18 @@
           return;
         }
 
+        // Online multiplayer: pick/swap UI অবশ্যই প্লেয়ার ডিভাইসেই দেখাতে হবে।
+        // তাই modal না খুলে host state-এ awaitingInput দিয়ে পছন্দ করাই।
+        if (mode && mode.startsWith("online")) {
+          p.stage = "arun_pick";
+          p.arun = { peek: peek.slice(), pick: null };
+          setAwaiting(actor.id, "অরুণ: আপনি কোন কার্ড নেবেন? (অথবা কিছুই না)", [
+            ...peek.map((r) => ({ label: `নিন: ${r}`, value: { t: "arun_pick", pick: r }, kind: "primary" })),
+            { label: "কিছুই না", value: { t: "arun_pick", pick: null }, kind: "" },
+          ]);
+          return;
+        }
+
         // লোকাল প্রাইভেসি: ভিউয়ার যদি ইতিমধ্যে অ্যাক্টর হয়, তাহলে "ডিভাইস পাস" লাগবে না
         if (mode === "local" && myPlayerId !== actor.id) await ensureLocalViewer(actor.id);
 
@@ -2986,6 +3018,64 @@
           shuffle(G.deck);
           log(`🕵️‍♂️ অরুণ: ${actor.name} কার্ড দেখেছে, কিন্তু বদলায়নি।`);
         }
+        endTurn();
+      }
+
+      function onArunPick(v) {
+        const p = G.pending;
+        const actor = getPlayer(p.actorId);
+        if (G.awaitingInput && G.awaitingInput.playerId !== actor.id) return;
+        clearAwaiting();
+
+        const peek = (p.arun?.peek || []).slice();
+        const pick = (v && Object.prototype.hasOwnProperty.call(v, "pick")) ? v.pick : null;
+
+        if (!pick) {
+          // return all
+          for (const r of peek) G.deck.push(r);
+          shuffle(G.deck);
+          log(`🕵️‍♂️ অরুণ: ${actor.name} কার্ড দেখেছে, কিন্তু বদলায়নি।`);
+          endTurn();
+          return;
+        }
+
+        p.stage = "arun_swap";
+        p.arun = p.arun || {};
+        p.arun.pick = pick;
+        setAwaiting(actor.id, "অরুণ: আপনি কোন কার্ড ডেকে ফেরত দেবেন?", actor.hand.map((r) => ({
+          label: r,
+          value: { t: "arun_swap", out: r },
+          kind: "danger",
+        })));
+      }
+
+      function onArunSwap(v) {
+        const p = G.pending;
+        const actor = getPlayer(p.actorId);
+        if (G.awaitingInput && G.awaitingInput.playerId !== actor.id) return;
+        clearAwaiting();
+
+        const peek = (p.arun?.peek || []).slice();
+        const pick = p.arun?.pick || null;
+        const out = v?.out;
+        if (!pick || !out) {
+          // safety: return all
+          for (const r of peek) G.deck.push(r);
+          shuffle(G.deck);
+          log(`🕵️‍♂️ অরুণ: ${actor.name} কার্ড দেখেছে, কিন্তু বদলায়নি।`);
+          endTurn();
+          return;
+        }
+
+        const outIdx = actor.hand.indexOf(out);
+        if (outIdx >= 0) actor.hand[outIdx] = pick;
+
+        // return others + out card
+        const remaining = peek.filter((r) => r !== pick);
+        remaining.push(out);
+        for (const r of remaining) G.deck.push(r);
+        shuffle(G.deck);
+        log(`🔁 অরুণ: ${actor.name} একটি কার্ড সোয়াপ করেছে।`);
         endTurn();
       }
 
@@ -3387,6 +3477,21 @@
           return;
         }
 
+        // Arun pick: সাধারণত "কিছুই না"
+        if (opts.length && opts[0].value?.t === "arun_pick") {
+          const pick = opts.find((o) => o.value?.t === "arun_pick" && o.value.pick === null)?.value
+            || opts[0].value;
+          receiveInput(pick);
+          return;
+        }
+
+        // Arun swap: যেকোনো একটা কার্ড ফেরত দেবে
+        if (opts.length && opts[0].value?.t === "arun_swap") {
+          const pick = opts[Math.floor(Math.random() * opts.length)].value;
+          receiveInput(pick);
+          return;
+        }
+
         // Tax pick: যেকোনো একটা রোল
         if (opts.length && opts[0].value?.t === "tax_pick") {
           const pick = opts[Math.floor(Math.random() * opts.length)].value;
@@ -3450,6 +3555,15 @@
       }
 
       function resetAll() {
+        // Online Host: হোস্ট বের হলে রুম/সার্ভার অটো ক্লোজ হবে (সবাইকে জানিয়ে)
+        if (mode === "online_host") {
+          try {
+            for (const [, conn] of connections.entries()) {
+              try { conn.send({ type: "room_closed" }); } catch {}
+              try { conn.close(); } catch {}
+            }
+          } catch {}
+        }
         // close peer if any
         try { if (peer) peer.destroy(); } catch {}
         peer = null;
@@ -3499,13 +3613,19 @@
           finalizeExchange(keepIdxs);
           return true;
         }
+        if (v && v.t === "exchange_keep") {
+          // online join থেকে আসা "keep" payload (host/local এ apply হবে)
+          clearAwaiting();
+          finalizeExchange(v.keepIdxs);
+          return true;
+        }
         return false;
       }
 
       // patch receiveInput to intercept special input
       const _receiveInput = receiveInput;
       receiveInput = function (val) {
-        if (val && val.t === "exchange_open") {
+        if (val && (val.t === "exchange_open" || val.t === "exchange_keep")) {
           handleSpecialInputs(val);
           return;
         }
