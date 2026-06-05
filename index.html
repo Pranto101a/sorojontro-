@@ -262,7 +262,32 @@
       .roleSmall{margin-top:6px; font-size:12px; color:var(--muted); font-weight:900}
       .actions{display:grid; grid-template-columns: repeat(2, 1fr); gap:10px; margin-top:12px;}
       @media (min-width: 560px){ .actions{grid-template-columns: repeat(3, 1fr);} }
-      .footerHint{margin-top:8px; font-size:12px; color:var(--muted); text-align:center}
+      /* Action hint (e.g., "আপনার অ্যাকশন নির্বাচন করুন") */
+      .footerHint{
+        margin-top:10px;
+        font-size:13px;
+        color:var(--muted);
+        text-align:center;
+        font-weight:900;
+        line-height:1.4;
+      }
+      /* When the current viewer needs to take action, make the hint prominent */
+      .footerHint.prompt{
+        font-size:16px;
+        font-weight:1100;
+        color:var(--text);
+        letter-spacing:.2px;
+        background:
+          radial-gradient(260px 80px at 30% 30%, rgba(246,176,30,.22), transparent 70%),
+          rgba(8,12,22,.72);
+        border:1px solid rgba(246,176,30,.38);
+        border-radius:16px;
+        padding:12px 14px;
+        box-shadow: 0 16px 70px rgba(0,0,0,.45);
+      }
+      @media (min-width: 560px){
+        .footerHint.prompt{ font-size:18px; padding:14px 16px; }
+      }
       .modalBackdrop{
         position:fixed; inset:0;
         background:rgba(0,0,0,.68);
@@ -291,8 +316,9 @@
         padding:16px;
         box-shadow: 0 30px 120px rgba(0,0,0,.55);
       }
-      .modal h3{margin:0; font-size:16px; font-weight:1000}
-      .modal p{margin:10px 0 0 0; color:var(--muted); font-weight:800; line-height:1.45}
+      /* Modal typography: bigger & clearer (mobile friendly) */
+      .modal h3{margin:0; font-size:20px; font-weight:1100; letter-spacing:.2px}
+      .modal p{margin:10px 0 0 0; color:var(--muted); font-weight:900; line-height:1.55; font-size:15px}
       .modal .buttons{display:flex; flex-wrap:wrap; gap:10px; margin-top:14px; justify-content:flex-end}
       .divider{height:1px; background:rgba(35,52,86,.6); margin:12px 0}
       .notice{
@@ -1567,6 +1593,7 @@
         const canAct = G.awaitingInput && G.awaitingInput.playerId === myPlayerId;
         actionButtons.innerHTML = "";
         actionHint.textContent = "";
+        actionHint.classList.remove("prompt");
         if (!canAct) {
           actionHint.textContent =
             current?.id === myPlayerId
@@ -1574,6 +1601,7 @@
               : `${current?.name}-এর টার্ন চলছে…`;
         } else {
           actionHint.textContent = G.awaitingInput.hint || "";
+          if (actionHint.textContent) actionHint.classList.add("prompt");
           for (const opt of G.awaitingInput.options) {
             const btn = document.createElement("button");
             btn.className = "btn " + (opt.kind || "");
