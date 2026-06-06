@@ -1020,15 +1020,13 @@
       updateSoundButton();
 
       function uid() {
-        // Better uniqueness + randomness (crypto যখন পাওয়া যায়)
+        // Unique id (CSPRNG)
         try {
-          if (typeof crypto !== "undefined" && crypto.getRandomValues) {
-            const a = new Uint32Array(3);
-            crypto.getRandomValues(a);
-            return `${a[0].toString(16)}${a[1].toString(16)}-${Date.now().toString(16)}-${a[2].toString(16)}`;
-          }
-        } catch {}
-        return Math.random().toString(16).slice(2) + "-" + Date.now().toString(16);
+          return `${randHex(8)}-${Date.now().toString(16)}-${randHex(4)}`;
+        } catch {
+          // Extremely old environment fallback: still avoid Math.random
+          return `${Date.now().toString(16)}-${String(performance?.now?.() || 0).replace(".", "")}`;
+        }
       }
 
       // ------------------------------------------------------------
@@ -1132,24 +1130,59 @@
         return false;
       }
 
-      // Random helper (prefer crypto RNG; fallback Math.random)
+      // ------------------------------------------------------------
+      // CSPRNG helpers (no Math.random)
+      // ------------------------------------------------------------
+      function _nodeCrypto() {
+        try {
+          // eslint-disable-next-line no-undef
+          if (typeof require === "function") return require("crypto");
+        } catch {}
+        return null;
+      }
+      function _getCrypto() {
+        try {
+          if (typeof crypto !== "undefined" && crypto) return crypto;
+        } catch {}
+        return _nodeCrypto();
+      }
+      function _fillRandom(buf) {
+        const c = _getCrypto();
+        if (c?.getRandomValues) return c.getRandomValues(buf);
+        if (c?.randomFillSync) return c.randomFillSync(buf);
+        throw new Error("CSPRNG পাওয়া যায়নি (crypto unavailable)");
+      }
+      function randUint32() {
+        const b = new Uint32Array(1);
+        _fillRandom(b);
+        return b[0] >>> 0;
+      }
+      function randFloat() {
+        // [0, 1)
+        return randUint32() / 4294967296; // 2^32
+      }
       function randInt(n) {
         n = Math.floor(Number(n) || 0);
         if (n <= 0) return 0;
-        try {
-          if (typeof crypto !== "undefined" && crypto.getRandomValues) {
-            // Rejection sampling to avoid modulo bias
-            const max = 0xFFFFFFFF;
-            const lim = max - (max % n);
-            const buf = new Uint32Array(1);
-            while (true) {
-              crypto.getRandomValues(buf);
-              const x = buf[0];
-              if (x < lim) return x % n;
-            }
-          }
-        } catch {}
-        return Math.floor(Math.random() * n);
+        // Rejection sampling to avoid modulo bias
+        const max = 0xFFFFFFFF;
+        const lim = max - (max % n);
+        while (true) {
+          const x = randUint32();
+          if (x < lim) return x % n;
+        }
+      }
+      function randChoice(arr) {
+        if (!arr || !arr.length) return null;
+        return arr[randInt(arr.length)];
+      }
+      function randHex(bytes = 8) {
+        const n = Math.max(1, Math.min(64, Math.floor(bytes)));
+        const b = new Uint8Array(n);
+        _fillRandom(b);
+        let s = "";
+        for (let i = 0; i < b.length; i++) s += b[i].toString(16).padStart(2, "0");
+        return s;
       }
 
       function shuffle(arr) {
@@ -1158,6 +1191,26 @@
           [arr[i], arr[j]] = [arr[j], arr[i]];
         }
         return arr;
+      }
+      // Continuous shuffling draw helpers: only the remaining deck is shuffled, deck is never reset.
+      function csShuffleDeck(deckArr) {
+        if (!Array.isArray(deckArr) || deckArr.length <= 1) return deckArr;
+        return shuffle(deckArr);
+      }
+      function drawOne(deckArr) {
+        if (!Array.isArray(deckArr) || deckArr.length === 0) return null;
+        csShuffleDeck(deckArr);
+        return deckArr.pop() ?? null;
+      }
+      function drawMany(deckArr, n) {
+        const out = [];
+        const k = Math.max(0, Math.floor(Number(n) || 0));
+        for (let i = 0; i < k; i++) {
+          const c = drawOne(deckArr);
+          if (!c) break;
+          out.push(c);
+        }
+        return out;
       }
       function deepClone(x) {
         return JSON.parse(JSON.stringify(x));
@@ -1655,7 +1708,7 @@
       function safeUpperCode(n = 6) {
         const chars = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
         let s = "";
-        for (let i = 0; i < n; i++) s += chars[Math.floor(Math.random() * chars.length)];
+        for (let i = 0; i < n; i++) s += chars[randInt(chars.length)];
         return s;
       }
 
@@ -2164,7 +2217,9 @@
         const deck = shuffle(pool.flatMap((r) => [r, r, r]));
         // deal
         for (const p of players) {
-          p.hand.push(deck.pop(), deck.pop());
+          p.hand.push(drawOne(deck), drawOne(deck));
+          // safety (should not happen): remove nulls
+          p.hand = p.hand.filter(Boolean);
         }
 
         G = {
@@ -2768,8 +2823,7 @@
           const idx = challenged.hand.indexOf(neededRole);
           const shown = challenged.hand.splice(idx, 1)[0];
           G.deck.push(shown);
-          shuffle(G.deck);
-          challenged.hand.push(G.deck.pop());
+          challenged.hand.push(drawOne(G.deck));
 
           // challenger loses one influence (choose)
           requestReveal(challengerId, "চ্যালেঞ্জ হার", `${challenger.name}, কোন কার্ড হারাবেন?`, onTruth);
@@ -2830,6 +2884,18 @@
         // clear any awaiting
         clearAwaiting();
 
+        // Track last resolved action for AI counter/combos (safe for all modes)
+        try {
+          const claimed = p?.claimedRole || aiActionToRole(p?.action?.type) || null;
+          G.lastAction = {
+            by: actor?.id || null,
+            type: p?.action?.type || null,
+            targetId: p?.targetId || null,
+            claimedRole: claimed,
+            ts: Date.now(),
+          };
+        } catch {}
+
         if (p.action.type === "foreign_aid") {
           actor.coins += 2;
           log(`💰 ${actor.name} রপ্তানি থেকে ২ কয়েন পেয়েছে।`);
@@ -2885,7 +2951,7 @@
         }
         if (p.action.type === "exchange") {
           // draw 2
-          const drawn = [G.deck.pop(), G.deck.pop()].filter(Boolean);
+          const drawn = drawMany(G.deck, 2);
           const choices = actor.hand.concat(drawn);
           // keep count depends on current life/cards (1 life => keep 1, 2 lives => keep 2)
           const keepCount = Math.max(1, Math.min(2, actor.hand.length || 2));
@@ -3155,13 +3221,31 @@
 
         const count = Math.min(G.deck.length, 1 + cost);
         const peek = [];
-        for (let i = 0; i < count; i++) peek.push(G.deck.pop());
+        for (let i = 0; i < count; i++) peek.push(drawOne(G.deck));
 
-        // AI হলে UI/modal না দেখিয়ে সিম্পলভাবে কার্ড ফিরিয়ে দিই
+        // AI মোড: ডায়নামিক ওয়েট দেখে (প্রয়োজনে) সোয়াপ করবে—না হলে কার্ড ফিরিয়ে দেবে
         if (actor.isAI) {
-          for (const r of peek) G.deck.push(r);
-          shuffle(G.deck);
-          log(`🕵️‍♂️ অরুণ: ${actor.name} কার্ড দেখেছে (AI), কিন্তু বদলায়নি।`);
+          const seen = peek.filter(Boolean);
+          const bestPeek = seen.slice().sort((a, b) => aiCardWeight(actor, b) - aiCardWeight(actor, a))[0] || null;
+          const worstHand = (actor.hand || []).slice().sort((a, b) => aiCardWeight(actor, a) - aiCardWeight(actor, b))[0] || null;
+
+          const bestW = bestPeek ? aiCardWeight(actor, bestPeek) : -1e9;
+          const worstW = worstHand ? aiCardWeight(actor, worstHand) : 1e9;
+
+          const shouldSwap = !!(bestPeek && worstHand && (bestW >= worstW + 1.0));
+          if (shouldSwap) {
+            const outIdx = actor.hand.indexOf(worstHand);
+            if (outIdx >= 0) actor.hand[outIdx] = bestPeek;
+            const remaining = seen.filter((r) => r !== bestPeek);
+            remaining.push(worstHand);
+            for (const r of remaining) G.deck.push(r);
+            csShuffleDeck(G.deck);
+            log(`🔁 অরুণ(AI): ${actor.name} সোয়াপ করেছে — পেয়েছে “${bestPeek}”।`);
+          } else {
+            for (const r of seen) G.deck.push(r);
+            csShuffleDeck(G.deck);
+            log(`🕵️‍♂️ অরুণ(AI): ${actor.name} কার্ড দেখেছে, কিন্তু বদলায়নি।`);
+          }
           endTurn();
           return;
         }
@@ -3413,17 +3497,97 @@
       }
 
       // ------------------------------------------------------------
-      // AI (simple heuristic + randomness)
+      // AI (AI মোডে স্মার্ট বট)
+      // - প্রতিটি কার্ডের Dynamic Weight
+      // - Special power কার্ড অকারণে নষ্ট না করা
+      // - Counter-attack / Combo setup হিউরিস্টিক
       // ------------------------------------------------------------
       function pct(n) {
         return Math.max(0, Math.min(100, Number(n || 0)));
       }
 
       function aiShould(pctVal) {
-        return Math.random() * 100 < pct(pctVal);
+        return randFloat() * 100 < pct(pctVal);
       }
 
       function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
+
+      function aiActionToRole(actionType) {
+        // actionType → যে রোল দাবি করা হয়
+        if (actionType === "tax") return "বীর বিক্রম";
+        if (actionType === "mamdo") return "মামদো-হুমদো";
+        if (actionType === "assassinate") return "ব্রহ্মদত্ত";
+        if (actionType === "betal") return "বেতাল";
+        if (actionType === "exchange") return "পেটুক চন্দ্র";
+        if (actionType === "arun") return "অরুণ";
+        if (actionType === "steal") return "কালো ডাকাত";
+        if (actionType === "steal_all") return "ছিচকে চোর";
+        if (actionType === "set_tax") return "নান্টু মিয়া";
+        return null;
+      }
+
+      function aiGetState(pl) {
+        if (!pl) return {};
+        pl.aiState = pl.aiState || {
+          roleBias: {},  // per-role running bias
+          plan: null,    // { a, targetId, untilTs }
+        };
+        return pl.aiState;
+      }
+
+      // Dynamic weight: কোন কার্ডটা হাতে রাখা/হারানো বেশি ক্ষতিকর?
+      function aiCardWeight(me, role) {
+        if (!me || !role) return 0;
+        const st = aiGetState(me);
+
+        // Base weights (rough strength/utility)
+        const base = {
+          "ব্রহ্মদত্ত": 8.5,    // kill + blocks assassinate
+          "বেতাল": 7.5,        // strong kill (costly)
+          "বীর বিক্রম": 7.0,    // +3 and blocks foreign aid
+          "পেটুক চন্দ্র": 7.0,  // exchange + blocks steal
+          "কালো ডাকাত": 6.5,   // steal + blocks steal
+          "মামদো-হুমদো": 6.0,  // +4
+          "ছিচকে চোর": 5.5,    // steal all + blocks
+          "অরুণ": 5.0,         // peek/swap utility
+          "নান্টু মিয়া": 4.5,   // set tax (long value)
+        };
+        let w = base[role] || 4.0;
+
+        const lives = me.hand?.length || 0;
+        const others = (G?.players || []).filter((p) => p.id !== me.id && (p.hand?.length || 0) > 0);
+        const richest = others.slice().sort((a, b) => (b.coins || 0) - (a.coins || 0))[0] || null;
+        const killTargetExists = others.some((p) => (p.hand?.length || 0) === 1);
+
+        // Low-life survival: prioritize defensive + swing cards
+        if (lives === 1) {
+          if (role === "পেটুক চন্দ্র") w += 4.0;   // exchange can save the game
+          if (role === "অরুণ") w += 2.0;
+          if (role === "ব্রহ্মদত্ত") w += 2.5;    // blocks assassinate
+          if (role === "বীর বিক্রম") w += 1.0;
+        }
+
+        // Rich opponent present → stealing/counter is more valuable
+        if ((richest?.coins || 0) >= 4) {
+          if (role === "কালো ডাকাত" || role === "ছিচকে চোর") w += 2.0;
+        }
+        if (killTargetExists) {
+          if (role === "ব্রহ্মদত্ত" || role === "বেতাল") w += 2.0;
+        }
+
+        // Counter context: last strong move by opponent
+        const la = G?.lastAction || null;
+        if (la && la.by && la.by !== me.id) {
+          if (role === "নান্টু মিয়া") w += 1.5; // set_tax can punish repeats
+          if (la.type === "steal" && (role === "পেটুক চন্দ্র" || role === "কালো ডাকাত")) w += 1.5;
+          if (la.type === "foreign_aid" && role === "বীর বিক্রম") w += 1.2;
+          if (la.type === "assassinate" && role === "ব্রহ্মদত্ত") w += 2.0;
+        }
+
+        // Learned bias (tiny)
+        w += clamp(Number(st.roleBias?.[role] || 0), -2, 2) * 0.5;
+        return w;
+      }
 
       function countRevealedRole(role) {
         let c = 0;
@@ -3471,7 +3635,17 @@
         }
       }
 
-      function pickBestTargetOption(opts) {
+      function pickBestTargetOption(me, opts) {
+        // If there is an active plan, try to target that player.
+        try {
+          const st = aiGetState(me);
+          const pid = st?.plan?.targetId || null;
+          if (pid) {
+            const hit = opts.find((o) => o?.value?.t === "target" && o.value.targetId === pid);
+            if (hit) return hit;
+          }
+        } catch {}
+
         let best = null;
         let bestScore = -1e9;
         for (const o of opts) {
@@ -3481,7 +3655,7 @@
           const mCoins = (o.label || "").match(/🪙\s(\d+)/);
           const coins = mCoins ? Number(mCoins[1]) : 0;
           // prioritize: lowest lives, then highest coins
-          const score = (lives === 1 ? 1000 : 0) + coins * 5 + (2 - lives) * 50 + Math.random() * 2;
+          const score = (lives === 1 ? 1000 : 0) + coins * 5 + (2 - lives) * 50 + randFloat() * 2;
           if (score > bestScore) { bestScore = score; best = o; }
         }
         return best || opts[0] || null;
@@ -3490,40 +3664,66 @@
       function aiPickActionOption(playerId, opts) {
         const me = getPlayer(playerId);
         if (!me) return opts.find((o) => o.value?.a === "income") || opts[0];
+        const st = aiGetState(me);
 
         const scoreOpt = (o) => {
           const a = o?.value?.a;
           const role = o?.value?.role || null;
           const isTruth = role ? me.hand.includes(role) : false;
-          const bluffPenalty = role && !isTruth ? (100 - pct(G.settings.ai.bluff)) / 4 : 0;
           const lives = me.hand.length || 2;
           const richTargetExists = G.players.some((p) => p.id !== me.id && p.hand.length > 0 && (p.coins || 0) >= 4);
           const killTargetExists = G.players.some((p) => p.id !== me.id && p.hand.length === 1);
 
-          let score = Math.random() * 3;
-          if (a === "income") score += 5;
-          if (a === "foreign_aid") score += 8;
-          if (a === "tax") score += 16;
-          if (a === "mamdo") score += 18;
-          if (a === "exchange") score += 11 + (lives === 1 ? 8 : 0);
-          if (a === "arun") score += 10;
-          if (a === "set_tax") score += 9;
-          if (a === "steal_all") score += 12 + (G.players.length >= 4 ? 4 : 0);
-          if (a === "steal") score += (richTargetExists ? 16 : 10);
-          if (a === "assassinate") score += (killTargetExists ? 22 : 14);
-          if (a === "betal") score += (killTargetExists ? 20 : 12);
-          if (a === "coup") score += (killTargetExists ? 40 : 22);
+          let score = randFloat() * 1.5;
+          // Economy / safe
+          if (a === "income") score += 7;
+          if (a === "foreign_aid") score += 9;
+
+          // Role actions
+          if (a === "tax") score += 15;
+          if (a === "mamdo") score += 16;
+          if (a === "exchange") score += (lives === 1 ? 20 : 7);
+          if (a === "arun") score += (lives === 1 ? 12 : 5);
+          if (a === "set_tax") score += (G.tax ? 6 : 12);
+          if (a === "steal_all") score += 11 + (G.players.length >= 4 ? 3 : 0);
+          if (a === "steal") score += (richTargetExists ? 17 : 10);
+          if (a === "assassinate") score += (killTargetExists ? 24 : 13);
+          if (a === "betal") score += (killTargetExists ? 22 : 12);
+          if (a === "coup") score += (killTargetExists ? 35 : 18);
 
           // Spend/risks
           if (lives === 1 && (a === "foreign_aid")) score -= 3;
           if (a === "assassinate" || a === "betal") score -= 2;
 
-          // Prefer truth claims; allow bluff sometimes
-          score -= bluffPenalty;
-          if (role && isTruth) score += 8;
+          // Prefer truth claims strongly (special power নষ্ট না করার জন্য)
+          if (role && !isTruth) score -= 7 + (100 - pct(G.settings.ai.bluff)) / 8;
+          if (role && isTruth) score += 6;
+
+          // Counter-attack: প্রতিপক্ষ刚 বড় মুভ করলে তাকে ভাঙা/পানিশ
+          const la = G?.lastAction || null;
+          if (la && la.by && la.by !== me.id) {
+            const opp = getPlayer(la.by);
+            const oppCoins = opp?.coins || 0;
+            if ((la.type === "tax" || la.type === "mamdo") && (a === "steal" || a === "steal_all")) score += 5;
+            if ((la.type === "tax" || la.type === "mamdo") && a === "set_tax") score += 6;
+            if (oppCoins >= 7 && (a === "assassinate" || a === "coup" || a === "betal")) score += 4;
+          }
+
+          // Combo setup: যদি প্ল্যান থাকে, সেটা ফলো করার বুস্ট
+          if (st?.plan && st.plan.a === a) score += 6;
 
           // If we are rich, be more aggressive
           score += clamp((me.coins || 0) - 4, 0, 10) * (a === "coup" ? 2.5 : 0.8);
+
+          // "ট্রাম্প" হিসেবে কিছু কার্ড সংরক্ষণ: দরকার না হলে exchange/arun কম খেলবে
+          if (a === "exchange") {
+            const worst = me.hand.slice().sort((x, y) => aiCardWeight(me, x) - aiCardWeight(me, y))[0];
+            if (lives === 2 && worst && aiCardWeight(me, worst) >= 6.5) score -= 6; // হাতে ভালো কার্ড থাকলে এক্সচেঞ্জ নষ্ট
+          }
+          if (a === "arun") {
+            const worst = me.hand.slice().sort((x, y) => aiCardWeight(me, x) - aiCardWeight(me, y))[0];
+            if (lives === 2 && worst && aiCardWeight(me, worst) >= 6.0) score -= 4;
+          }
 
           return score;
         };
@@ -3545,9 +3745,11 @@
         const ai = G.settings.ai;
         const opts = G.awaitingInput.options;
 
-        // Reveal: choose random card
+        // Reveal: Dynamic weight → সবচেয়ে কম দরকারি কার্ড হারাবে
         if (opts.length && opts[0].value?.t === "reveal") {
-          const pick = opts[Math.floor(Math.random() * opts.length)].value;
+          const roles = opts.map((o) => o?.value?.role).filter(Boolean);
+          const worst = roles.slice().sort((a, b) => aiCardWeight(p, a) - aiCardWeight(p, b))[0];
+          const pick = opts.find((o) => o?.value?.role === worst)?.value || opts[0].value;
           receiveInput(pick);
           return;
         }
@@ -3574,13 +3776,24 @@
         if (opts.some((o) => o.value?.t === "block")) {
           const pending = G.pending;
           const isTargeted = pending?.targetId && pending.targetId === playerId;
-          const isDanger = pending?.action?.type === "assassinate" || pending?.action?.type === "steal";
-          const wantBlock = (isTargeted && isDanger) || (pending?.action?.type === "foreign_aid");
+          const aType = pending?.action?.type || null;
+          const isDanger = aType === "assassinate" || aType === "steal" || aType === "steal_all";
+          const wantBlock =
+            (aType === "foreign_aid")
+            || (isTargeted && (aType === "assassinate" || aType === "steal"))
+            || (aType === "steal_all" && (p?.coins || 0) > 0);
 
           // Prefer truthful block if possible, else bluff depending on ai.bluff
           const roleOptions = opts.filter((o) => o.value?.t === "block" && o.value.yes === true);
           const truth = roleOptions.find((o) => (o.value?.role && p?.hand?.includes(o.value.role)));
-          const doBlock = wantBlock ? (truth ? true : aiShould(ai.bluff)) : aiShould(Math.min(35, ai.aggression));
+          let doBlock = false;
+          if (wantBlock) {
+            // Counter: ঠিক সময় ব্লক (truth থাকলে অবশ্যই)
+            doBlock = truth ? true : aiShould(Math.min(95, pct(ai.bluff) + (p.hand.length === 1 ? 20 : 0)));
+          } else {
+            // অকারণে ব্লক/ব্লাফ কম
+            doBlock = isDanger ? aiShould(Math.min(25, pct(ai.aggression))) : aiShould(Math.min(15, pct(ai.aggression)));
+          }
           const chosenRole = truth?.value || (roleOptions[0]?.value);
           const pick =
             doBlock
@@ -3609,19 +3822,24 @@
 
         // Target pick: prefer low-life
         if (opts.length && opts[0].value?.t === "target") {
-          const best = pickBestTargetOption(opts) || opts[0];
+          const best = pickBestTargetOption(p, opts) || opts[0];
+          try { aiGetState(p).plan = null; } catch {}
           receiveInput(best.value);
           return;
         }
 
-        // Exchange open: just open and choose random keep
+        // Exchange open: Dynamic weight দেখে best keep নির্বাচন (AI mode)
         if (opts.length && opts[0].value?.t === "exchange_open") {
           // pick first N (no UI for AI)
           clearAwaiting();
           const pctx = G.pending;
           if (!pctx || !pctx.exchange) return endTurn();
           const k = clamp(Number(pctx.exchange.keepCount || 2), 1, 2);
-          finalizeExchange(k === 1 ? [0] : [0, 1]);
+          const choices = (pctx.exchange.choices || []).slice();
+          const scored = choices.map((r, i) => ({ i, r, w: aiCardWeight(p, r) }));
+          scored.sort((a, b) => b.w - a.w);
+          const keepIdxs = scored.slice(0, k).map((x) => x.i);
+          finalizeExchange(keepIdxs);
           return;
         }
 
@@ -3654,7 +3872,8 @@
         // Steal-all block: নিজের কয়েন থাকলে মাঝেমধ্যে ব্লক করবে
         if (opts.length && opts[0].value?.t === "steal_all_block") {
           const me = getPlayer(playerId);
-          const doBlock = (me.coins > 0) && aiShould(55);
+          const hasTruth = (me.hand || []).includes("ছিচকে চোর");
+          const doBlock = (me.coins > 0) && (hasTruth ? true : aiShould(Math.min(75, pct(ai.bluff) * 0.6)));
           const pick = opts.find((o) => o.value?.t === "steal_all_block" && o.value.yes === doBlock)?.value
             || opts.find((o) => o.value?.t === "steal_all_block" && o.value.yes === false)?.value;
           receiveInput(pick);
@@ -3663,7 +3882,14 @@
 
         // Arun pay choice: সাধারণত ০ বা ১ নেয়
         if (opts.length && opts[0].value?.t === "arun_pay") {
-          const pick = opts.find((o) => o.value?.t === "arun_pay" && o.value.extra === 0)?.value
+          const me = getPlayer(playerId);
+          const lives = me?.hand?.length || 2;
+          const coins = me?.coins || 0;
+          let wantExtra = 0;
+          if (lives === 1 && coins >= 1) wantExtra = Math.min(2, coins); // মরার কাছাকাছি হলে বেশি দেখে
+          else if (coins >= 1 && aiShould(12)) wantExtra = 1;
+          const pick = opts.find((o) => o.value?.t === "arun_pay" && o.value.extra === wantExtra)?.value
+            || opts.find((o) => o.value?.t === "arun_pay" && o.value.extra === 0)?.value
             || opts[0].value;
           receiveInput(pick);
           return;
@@ -3679,22 +3905,43 @@
 
         // Arun swap: যেকোনো একটা কার্ড ফেরত দেবে
         if (opts.length && opts[0].value?.t === "arun_swap") {
-          const pick = opts[Math.floor(Math.random() * opts.length)].value;
+          // যে কার্ডটা সবচেয়ে কম দরকারি, সেটাই ফেরত
+          const roles = opts.map((o) => o?.value?.out).filter(Boolean);
+          const worst = roles.slice().sort((a, b) => aiCardWeight(p, a) - aiCardWeight(p, b))[0];
+          const pick = opts.find((o) => o?.value?.out === worst)?.value || opts[0].value;
           receiveInput(pick);
           return;
         }
 
         // Tax pick: যেকোনো একটা রোল
         if (opts.length && opts[0].value?.t === "tax_pick") {
-          const pick = opts[Math.floor(Math.random() * opts.length)].value;
-          receiveInput(pick);
+          const la = G?.lastAction || null;
+          const preferRole = la ? aiActionToRole(la.type) : null;
+          const me = p;
+          // Prefer taxing the role that opponent just used (counter), else tax high-frequency pool role.
+          let best = null;
+          let bestScore = -1e9;
+          for (const o of opts) {
+            if (o?.value?.t !== "tax_pick") continue;
+            const r = o.value.role;
+            let s = 0;
+            if (preferRole && r === preferRole) s += 8;
+            // common/strong roles get more value
+            s += aiCardWeight(me, r) * 0.6;
+            // don't self-tax: if I hold that role (likely to play), small penalty
+            if (me.hand?.includes(r)) s -= 3;
+            s += randFloat() * 0.5;
+            if (s > bestScore) { bestScore = s; best = o; }
+          }
+          receiveInput((best || opts[0]).value);
           return;
         }
 
         // Betal bribe: ২ কয়েন থাকলে বেশিরভাগ সময় দেবে
         if (opts.length && opts[0].value?.t === "betal_bribe") {
           const me = getPlayer(playerId);
-          const pay = me.coins >= 2 && aiShould(70);
+          const lives = me?.hand?.length || 2;
+          const pay = me.coins >= 2 && (lives === 1 ? true : aiShould(70));
           const pick = opts.find((o) => o.value?.t === "betal_bribe" && o.value.pay === pay)?.value
             || opts.find((o) => o.value?.t === "betal_bribe" && o.value.pay === false)?.value;
           receiveInput(pick);
@@ -3704,6 +3951,17 @@
         // Action selection: heuristic with bluff
         if (opts.some((o) => o.value?.t === "action")) {
           const best = aiPickActionOption(playerId, opts);
+          // Combo setup: পরের টার্নের জন্য টার্গেট/প্ল্যান সেট (শুধু AI মোডে)
+          try {
+            const st = aiGetState(p);
+            const la = G?.lastAction || null;
+            const a = best?.value?.a || null;
+            if (st?.plan?.untilTs && st.plan.untilTs < Date.now()) st.plan = null;
+            if (la && la.by && la.by !== p.id) {
+              if (a === "set_tax") st.plan = { a: "steal", targetId: la.by, untilTs: Date.now() + 8 * 60 * 1000 };
+              else if (la.type === "tax" || la.type === "mamdo") st.plan = { a: "steal", targetId: la.by, untilTs: Date.now() + 6 * 60 * 1000 };
+            }
+          } catch {}
           return receiveInput(best.value);
         }
       }
