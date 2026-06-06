@@ -813,7 +813,7 @@
           </div>
           <div class="footerHint" style="margin-top:8px;">অভিনন্দন! চাইলে নতুন ম্যাচ শুরু করতে পারেন।</div>
           <div style="margin-top:12px;">
-            <button id="btn-new-match" class="btn primary">নতুন ম্যাচ শুরু করুন</button>
+            <button id="btn-new-match" class="btn primary">Restart the Match</button>
           </div>
         </div>
 
@@ -1070,6 +1070,7 @@
       // ---------- Game State (host/local authoritative) ----------
       let G = null;
       let lastTurnId = null;
+      let lastMatchConfig = null; // for "Restart the Match" in Local/AI
 
       // ------------------------------------------------------------
       // AI learning (learn from online matches, apply in AI mode)
@@ -1886,7 +1887,8 @@
         try {
           actionMedia.classList.add("hidden");
           actionMedia.innerHTML = "";
-          if (!isOnline || !canAct || !G?.awaitingInput?.meta) return;
+          // Show in all modes (Local/AI/Online) when there is a challenge/reveal meta
+          if (!canAct || !G?.awaitingInput?.meta) return;
           const meta = G.awaitingInput.meta || {};
 
           if (meta.kind === "challenge" && meta.role) {
@@ -1963,6 +1965,11 @@
         renderLobbyNames();
         if (panelRoles) panelRoles.classList.toggle("hidden", !canShowSetup);
         if (btnStart) btnStart.classList.toggle("hidden", mode === "online_join" || (mode === "online_host" && !hostSetupOpened));
+        // Fix: if user visited online_host before, btnStart may stay disabled in local/ai.
+        if (btnStart) {
+          const n = lobbyJoinCount();
+          btnStart.disabled = (mode === "online_host") ? (!hostSetupOpened || n < 1) : false;
+        }
         if (btnOpenSetup) btnOpenSetup.classList.toggle("hidden", mode !== "online_host" || hostSetupOpened);
         // role picker render (only when in lobby, and only after setup is visible)
         if (mode !== null && G === null && canShowSetup) renderRolePicker();
@@ -1982,7 +1989,7 @@
         const isGameOver = !!G.gameOver;
         if (gameOverPanel) gameOverPanel.classList.toggle("hidden", !isGameOver);
         if (winnerNameEl) winnerNameEl.textContent = G.gameOver?.winnerName || "-";
-        if (btnNewMatch) btnNewMatch.classList.toggle("hidden", mode === "online_join");
+        if (btnNewMatch) btnNewMatch.classList.toggle("hidden", false);
         $("action-area")?.classList.toggle("hidden", isGameOver);
 
         // header stats
@@ -2146,9 +2153,9 @@
 
         // start gating (host can't start until setup opened + at least 1 join)
         if (btnStart) {
-          if (mode === "online_host") {
-            btnStart.disabled = !hostSetupOpened || n < 1;
-          }
+          // NOTE: btnStart can remain disabled if user visited online_host before.
+          // Always reset it unless we are currently in online_host mode.
+          btnStart.disabled = (mode === "online_host") ? (!hostSetupOpened || n < 1) : false;
         }
       }
 
@@ -2409,6 +2416,13 @@
           receiveInput(data.value);
           return;
         }
+        if (data.type === "restart_match") {
+          // Only host can restart; applies for online_host mode
+          if (mode === "online_host" && isHost) {
+            restartMatch();
+          }
+          return;
+        }
         if (data.type === "prompt_response") {
           const r = pendingPromptResolvers.get(data.promptId);
           if (r) {
@@ -2622,6 +2636,17 @@
 
         const baseAi = aiParams || { bluff: 45, challenge: 35, aggression: 45 };
         const finalAi = withAI ? applyLearnToAiParams(baseAi) : baseAi;
+
+        // Keep a lightweight restart config (Local/AI only)
+        try {
+          lastMatchConfig = {
+            totalPlayers: clamp(Number(totalPlayers || 3), 2, 6),
+            withAI: !!withAI,
+            aiParams: { bluff: pct(baseAi.bluff), challenge: pct(baseAi.challenge), aggression: pct(baseAi.aggression) },
+            rolesPool: pool.slice(),
+            names: nameList ? nameList.slice(0, 6) : null,
+          };
+        } catch {}
 
         G = {
           version: 1,
@@ -4452,6 +4477,61 @@
         render();
       }
 
+      async function restartMatch() {
+        try {
+          // Online join: request host to restart
+          if (mode === "online_join") {
+            const conn = connections.get("host");
+            if (conn && conn.open) {
+              try { conn.send({ type: "restart_match" }); } catch {}
+              setJoinStatus("হোস্টকে “Restart the Match” রিকোয়েস্ট পাঠানো হয়েছে…", true);
+            }
+            return;
+          }
+
+          // Online host: restart in the same room; clients will be re-assigned
+          if (mode === "online_host") {
+            if (!G) return;
+            isHost = true;
+            const total = clamp((G.players || []).filter((p) => !p.isAI).length, 2, 6);
+            const rolesPool =
+              (G?.settings?.rolesPool && G.settings.rolesPool.length === 5
+                ? G.settings.rolesPool.slice()
+                : DEFAULT_ROLE_POOL.slice());
+
+            // force re-assign so clients get new playerIds for the new match
+            try {
+              for (const [, c] of connections.entries()) {
+                if (!c) continue;
+                c._playerId = null;
+              }
+            } catch {}
+
+            initNewGame({ totalPlayers: total, withAI: false, rolesPool });
+            return;
+          }
+
+          // Local/AI: restart immediately with the same settings
+          if (mode === "local" || mode === "ai") {
+            if (!lastMatchConfig) return resetAll();
+            isHost = true;
+            const cfg = {
+              totalPlayers: lastMatchConfig.totalPlayers,
+              withAI: lastMatchConfig.withAI,
+              aiParams: lastMatchConfig.aiParams ? { ...lastMatchConfig.aiParams } : null,
+              rolesPool: (lastMatchConfig.rolesPool || []).slice(),
+              names: lastMatchConfig.names ? lastMatchConfig.names.slice() : null,
+            };
+            initNewGame(cfg);
+            return;
+          }
+
+          resetAll();
+        } catch {
+          resetAll();
+        }
+      }
+
       function resetAll() {
         // User explicitly leaving → clear saved session so reload won't resume.
         clearSavedSession();
@@ -4685,7 +4765,7 @@
       btnOnlineHome?.addEventListener("click", () => resetAll());
       btnRules.onclick = () => showRules();
       btnBack.onclick = () => resetAll();
-      btnNewMatch?.addEventListener("click", () => resetAll());
+      btnNewMatch?.addEventListener("click", () => restartMatch());
       btnSound?.addEventListener("click", () => {
         audioEnabled = !audioEnabled;
         saveSoundPref();
