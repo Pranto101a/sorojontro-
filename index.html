@@ -2638,7 +2638,7 @@
         } catch {}
         // assign connection -> player if not assigned (first time game started)
         // We do it lazily when game exists.
-        if (!G) return;
+        for (const [tempId, conn] of connections.entries()) {
           if (!conn._accepted) continue;
           if (conn._playerId) continue;
           // Reconnect support: if client has rid and a matching player exists, re-assign.
@@ -2650,7 +2650,6 @@
               continue;
             }
           }
-
 
           // Assign to the next unassigned non-AI player excluding host
           const unassigned = G.players.filter((p) => !p.isAI && p.id !== myPlayerId);
