@@ -599,10 +599,54 @@
       }
       .rolePickName{font-weight:1000; font-size:13px}
       .rolePickMeta{font-size:11px; color:var(--muted); font-weight:900; margin-top:2px}
+
+      /* Reconnect overlay (online mode) */
+      .reconnectOverlay{
+        position:fixed;
+        inset:0;
+        z-index:9999;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        background:rgba(7,10,18,.45);
+        backdrop-filter: blur(10px);
+        padding:18px;
+      }
+      .reconnectCard{
+        display:flex;
+        gap:12px;
+        align-items:center;
+        border:1px solid rgba(35,52,86,.85);
+        background:rgba(17,28,51,.72);
+        border-radius:18px;
+        padding:14px 16px;
+        box-shadow: var(--glow);
+        max-width:min(520px, 94vw);
+      }
+      .reconnectTitle{font-weight:1100; letter-spacing:.2px}
+      .reconnectSub{font-size:12px; font-weight:900; color:rgba(235,243,255,.62); margin-top:2px}
+      .spin{
+        width:18px; height:18px;
+        border-radius:999px;
+        border:2px solid rgba(235,243,255,.25);
+        border-top-color: rgba(33,193,122,.95);
+        animation: spin 0.9s linear infinite;
+        flex:0 0 auto;
+      }
+      @keyframes spin{to{transform:rotate(360deg)}}
     </style>
   </head>
   <body>
     <canvas id="fx-canvas"></canvas>
+    <div id="reconnect-overlay" class="reconnectOverlay hidden">
+      <div class="reconnectCard">
+        <div class="spin"></div>
+        <div>
+          <div class="reconnectTitle">রিকানেক্টিং…</div>
+          <div id="reconnect-sub" class="reconnectSub">অনুগ্রহ করে অপেক্ষা করুন…</div>
+        </div>
+      </div>
+    </div>
     <div class="container">
       <div id="topbar" class="topbar">
         <div class="brand">
@@ -979,6 +1023,8 @@
 
       // ---------- UI refs ----------
       const $ = (id) => document.getElementById(id);
+      const reconnectOverlay = $("reconnect-overlay");
+      const reconnectSub = $("reconnect-sub");
       const screenHome = $("screen-home");
       const screenLobby = $("screen-lobby");
       const screenGame = $("screen-game");
@@ -1106,6 +1152,8 @@
       function markHostSeen() {
         hostLastSeenTs = Date.now();
         hostOfflineSinceTs = null;
+        // Any message from host means we are effectively reconnected
+        try { hideReconnectOverlay(); } catch {}
       }
 
       // ------------------------------------------------------------
@@ -2164,6 +2212,90 @@
         };
       }
 
+      // --- Reconnect helpers (fast + avoid stuck awaits) ---
+      const _WAIT_OPEN_MS = 3500;
+      const _WAIT_CONN_MS = 3500;
+      let _joinSetupPromise = null;
+      let _joinAttemptToken = 0;
+      let _joinRetryTimer = null;
+      let _joinRetryCount = 0;
+      let _hostRetryTimer = null;
+      let _hostRetryCount = 0;
+
+      function sleep(ms) {
+        return new Promise((r) => setTimeout(r, ms));
+      }
+      function withTimeout(p, ms, label) {
+        return new Promise((resolve, reject) => {
+          const t = setTimeout(() => reject(new Error(label || "timeout")), Math.max(0, ms || 0));
+          Promise.resolve(p)
+            .then((v) => {
+              clearTimeout(t);
+              resolve(v);
+            })
+            .catch((e) => {
+              clearTimeout(t);
+              reject(e);
+            });
+        });
+      }
+      function once(emitter, eventName) {
+        return new Promise((resolve) => {
+          try { emitter.once(eventName, resolve); } catch { emitter.on(eventName, resolve); }
+        });
+      }
+      function jitter(ms) {
+        const base = Math.max(0, Number(ms) || 0);
+        const j = Math.floor(base * 0.25 * (randFloat() * 2 - 1)); // +/- 25%
+        return Math.max(0, base + j);
+      }
+      function backoffDelay(count, base, cap) {
+        const b = Math.max(50, Number(base) || 300);
+        const c = Math.max(b, Number(cap) || 2500);
+        // 0->b, 1->2b, 2->4b ...
+        return jitter(Math.min(c, b * Math.pow(2, Math.min(6, Math.max(0, count)))));
+      }
+
+      function clearJoinRetry() {
+        if (_joinRetryTimer) clearTimeout(_joinRetryTimer);
+        _joinRetryTimer = null;
+        _joinRetryCount = 0;
+      }
+      function scheduleJoinReconnect(reason) {
+        if (!autoReconnect) return;
+        if (mode !== "online_join") return;
+        const code = String(onlineRoomCode || "").trim().toUpperCase();
+        if (!code) return;
+        if (!navigator.onLine) return; // wait for browser "online" event
+        if (_joinRetryTimer) return;
+        try { showReconnectOverlay("রিকানেক্টিং…"); } catch {}
+        const delay = backoffDelay(_joinRetryCount++, 350, 2200);
+        _joinRetryTimer = setTimeout(() => {
+          _joinRetryTimer = null;
+          setupOnlineJoin(code, { force: true, reason: reason || "retry" }).catch(() => {});
+        }, delay);
+      }
+
+      function clearHostRetry() {
+        if (_hostRetryTimer) clearTimeout(_hostRetryTimer);
+        _hostRetryTimer = null;
+        _hostRetryCount = 0;
+      }
+      function scheduleHostRehost(reason) {
+        if (!autoReconnect) return;
+        if (mode !== "online_host") return;
+        const code = String(onlineRoomCode || "").trim().toUpperCase();
+        if (!code) return;
+        if (!navigator.onLine) return;
+        if (_hostRetryTimer) return;
+        try { showReconnectOverlay("রুম আবার খুলছে…"); } catch {}
+        const delay = backoffDelay(_hostRetryCount++, 350, 2500);
+        _hostRetryTimer = setTimeout(() => {
+          _hostRetryTimer = null;
+          setupOnlineHost(code, { force: true, reason: reason || "rehost" }).catch(() => {});
+        }, delay);
+      }
+
       function safeUpperCode(n = 6) {
         const chars = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
         let s = "";
@@ -2332,7 +2464,7 @@
         if (waitRoomStatusEl) waitRoomStatusEl.textContent = text || "রুম স্ট্যাটাস: প্রস্তুত নয়";
       }
 
-      async function setupOnlineHost(roomCode) {
+      async function setupOnlineHost(roomCode, opts) {
         isHost = true;
         $("net-pill").classList.remove("hidden");
         roomCodeEl.textContent = roomCode;
@@ -2341,12 +2473,16 @@
 
         // Load PeerJS dynamically (so local/ai doesn't depend on it)
         await loadPeerJs();
+        // Always recreate host peer (safer across reload/network flaps)
         try { if (peer) peer.destroy(); } catch {}
+        peer = null;
         peer = new Peer(roomCode, peerClientConfig());
 
         peer.on("open", () => {
           logToConsole("Peer open (host): " + roomCode);
           setRoomStatus("open", "রুম স্ট্যাটাস: খোলা আছে ✅");
+          clearHostRetry();
+          try { hideReconnectOverlay(); } catch {}
           broadcastLobbyInfo();
         });
         peer.on("connection", (conn) => {
@@ -2365,59 +2501,109 @@
         });
         peer.on("error", (e) => {
           logToConsole("peer error: " + e);
+          // If room code is still "busy" (host just reloaded), retry automatically.
           setRoomStatus("error", "রুম স্ট্যাটাস: খুলতে সমস্যা হয়েছে ❌");
+          try {
+            // Mark peer as bad so maintenance can rehost quickly
+            try { peer && peer.destroy && peer.destroy(); } catch {}
+          } catch {}
+          try { peer = null; } catch {}
+          scheduleHostRehost("peer_error");
+        });
+        peer.on("disconnected", () => {
+          setRoomStatus("pending", "রুম স্ট্যাটাস: সংযোগ বিচ্ছিন্ন—আবার খুলছে…");
+          try { peer && peer.destroy && peer.destroy(); } catch {}
+          try { peer = null; } catch {}
+          scheduleHostRehost("peer_disconnected");
+        });
+        peer.on("close", () => {
+          setRoomStatus("pending", "রুম স্ট্যাটাস: বন্ধ—আবার খুলছে…");
+          try { peer = null; } catch {}
+          scheduleHostRehost("peer_close");
         });
         updateHostLobbyUI();
         updateWaitLobbyUI();
       }
 
-      async function setupOnlineJoin(roomCode) {
+      async function setupOnlineJoin(roomCode, opts) {
+        // Coalesce parallel calls (maintenance + close-handler + sendInput)
+        if (_joinSetupPromise && !(opts && opts.force)) return _joinSetupPromise;
+
+        const token = ++_joinAttemptToken;
         isHost = false;
         $("net-pill").classList.remove("hidden");
         onlineRoomCode = roomCode;
         setRoomStatus("pending", "রুম স্ট্যাটাস: সংযোগ হচ্ছে…");
-        await loadPeerJs();
-        // Cleanup any old peer before re-joining
-        try { if (peer) peer.destroy(); } catch {}
-        peer = new Peer(undefined, peerClientConfig());
-        await new Promise((resolve) => peer.on("open", resolve));
-        const conn = peer.connect(roomCode);
-        conn.on("open", () => {
-          logToConsole("connected to host");
-          conn.send({ type: "hello", name: inpName.value.trim() || "Player", rid: getReconnectId() });
+
+        const doJoin = (async () => {
+          if (!navigator.onLine) throw new Error("offline");
+          await loadPeerJs();
+
+          // Cleanup any old peer before re-joining
+          try { if (peer) peer.destroy(); } catch {}
+          peer = new Peer(undefined, peerClientConfig());
+
+          // Wait for peer server connection, but don't hang forever
+          await withTimeout(once(peer, "open"), _WAIT_OPEN_MS, "peer_open_timeout");
+          if (token !== _joinAttemptToken) throw new Error("superseded");
+
+          // Connect to host and wait for open with timeout
+          const conn = peer.connect(roomCode, { reliable: true });
+          await withTimeout(
+            new Promise((resolve, reject) => {
+              conn.on("open", resolve);
+              conn.on("error", reject);
+            }),
+            _WAIT_CONN_MS,
+            "conn_open_timeout"
+          );
+          if (token !== _joinAttemptToken) {
+            try { conn.close(); } catch {}
+            throw new Error("superseded");
+          }
+
+          // Wire events AFTER open so we don't keep stale handlers around
+          conn.on("data", (data) => onClientData(conn, data));
+          conn.on("error", (e) => {
+            logToConsole("conn error: " + e);
+            scheduleJoinReconnect("conn_error");
+          });
+          conn.on("close", () => {
+            // Host রিলোড/ডিসকানেক্ট হলে ক্লায়েন্ট অটো রিকানেক্ট করবে (রুম কোড একই থাকে)
+            if (hostOfflineSinceTs === null) hostOfflineSinceTs = Date.now();
+            setRoomStatus("pending", "রুম স্ট্যাটাস: পুনরায় সংযোগ হচ্ছে…");
+            setJoinStatus("হোস্ট সংযোগ বিচ্ছিন্ন — আবার চেষ্টা হচ্ছে…", true);
+            scheduleJoinReconnect("conn_close");
+          });
+          peer.on("error", (e) => {
+            logToConsole("peer error: " + e);
+            setRoomStatus("error", "রুম স্ট্যাটাস: সংযোগ সমস্যা ❌");
+            scheduleJoinReconnect("peer_error");
+          });
+          peer.on("disconnected", () => {
+            setRoomStatus("pending", "রুম স্ট্যাটাস: সংযোগ বিচ্ছিন্ন—আবার কানেক্ট হচ্ছে…");
+            scheduleJoinReconnect("peer_disconnected");
+          });
+
+          connections.set("host", conn);
+
+          // Hello handshake (includes stable reconnect id)
+          try {
+            logToConsole("connected to host");
+            conn.send({ type: "hello", name: inpName.value.trim() || "Player", rid: getReconnectId() });
+          } catch {}
           markHostSeen();
+          clearJoinRetry();
+          try { hideReconnectOverlay(); } catch {}
+          saveSession();
+          return true;
+        })();
+
+        _joinSetupPromise = doJoin.finally(() => {
+          // Only clear promise if this was the latest attempt
+          if (token === _joinAttemptToken) _joinSetupPromise = null;
         });
-        conn.on("data", (data) => onClientData(conn, data));
-        conn.on("error", (e) => logToConsole("conn error: " + e));
-        conn.on("close", () => {
-          // Host রিলোড/ডিসকানেক্ট হলে ক্লায়েন্ট অটো রিকানেক্ট করবে (রুম কোড একই থাকে)
-          if (hostOfflineSinceTs === null) hostOfflineSinceTs = Date.now();
-          if (!autoReconnect) return;
-          if (mode !== "online_join") return;
-          const code = String(onlineRoomCode || "").trim().toUpperCase();
-          if (!code) return;
-          setRoomStatus("pending", "রুম স্ট্যাটাস: পুনরায় সংযোগ হচ্ছে…");
-          setJoinStatus("হোস্ট সংযোগ বিচ্ছিন্ন — আবার চেষ্টা হচ্ছে…", true);
-          let tries = 0;
-          const retry = async () => {
-            if (!autoReconnect) return;
-            if (mode !== "online_join") return;
-            tries += 1;
-            try {
-              await setupOnlineJoin(code);
-              setJoinStatus("পুনরায় সংযুক্ত ✅", true);
-            } catch {
-              if (tries < 10) setTimeout(retry, Math.min(5000, 800 + tries * 400));
-            }
-          };
-          setTimeout(retry, 900);
-        });
-        peer.on("error", (e) => {
-          logToConsole("peer error: " + e);
-          setRoomStatus("error", "রুম স্ট্যাটাস: সংযোগ সমস্যা ❌");
-        });
-        connections.set("host", conn);
-        saveSession();
+        return _joinSetupPromise;
       }
 
       function logToConsole(s) {
@@ -4684,6 +4870,9 @@
         // User explicitly leaving → clear saved session so reload won't resume.
         clearSavedSession();
         autoReconnect = false;
+        try { hideReconnectOverlay(); } catch {}
+        try { clearJoinRetry(); } catch {}
+        try { clearHostRetry(); } catch {}
 
         // Online Host: হোস্ট বের হলে রুম/সার্ভার অটো ক্লোজ হবে (সবাইকে জানিয়ে)
         if (mode === "online_host") {
@@ -5081,8 +5270,14 @@
         }
         btnJoin.disabled = true;
         setJoinStatus("সংযোগ হচ্ছে…", true);
-        await setupOnlineJoin(code);
-        setJoinStatus("জয়েন হয়েছে। হোস্ট গেম শুরু করলে আপনি স্বয়ংক্রিয়ভাবে ঢুকে যাবেন।", true);
+        try {
+          await setupOnlineJoin(code);
+          setJoinStatus("জয়েন হয়েছে। হোস্ট গেম শুরু করলে আপনি স্বয়ংক্রিয়ভাবে ঢুকে যাবেন।", true);
+        } catch {
+          btnJoin.disabled = false;
+          setJoinStatus("সংযোগ করা যায়নি — আবার চেষ্টা করুন।", true);
+          setRoomStatus("error", "রুম স্ট্যাটাস: সংযোগ সমস্যা ❌");
+        }
       });
 
       btnStart.onclick = async () => {
@@ -5175,6 +5370,20 @@
         }
       }
 
+      function showReconnectOverlay(text) {
+        try {
+          if (!reconnectOverlay) return;
+          reconnectOverlay.classList.remove("hidden");
+          if (reconnectSub) reconnectSub.textContent = text || "অনুগ্রহ করে অপেক্ষা করুন…";
+        } catch {}
+      }
+      function hideReconnectOverlay() {
+        try {
+          if (!reconnectOverlay) return;
+          reconnectOverlay.classList.add("hidden");
+        } catch {}
+      }
+
       window.addEventListener("offline", () => {
         _wentOffline = true;
         _offlineSinceTs = Date.now();
@@ -5203,6 +5412,7 @@
           try {
             if (mode === "online_join") setJoinStatus("অনলাইনে ফিরে এসেছেন—অটো রিলোড হচ্ছে…", true);
             setRoomStatus("pending", "রুম স্ট্যাটাস: পুনরায় সংযোগ হচ্ছে…");
+            showReconnectOverlay("অনলাইনে ফিরে এসেছেন — পুনরায় সংযোগ হচ্ছে…");
           } catch {}
           setTimeout(() => { try { location.reload(); } catch {} }, 250);
           return;
@@ -5213,11 +5423,13 @@
           if (mode === "online_join" && onlineRoomCode) {
             setJoinStatus("অনলাইনে ফিরে এসেছেন—রুমে আবার কানেক্ট হচ্ছে…", true);
             setRoomStatus("pending", "রুম স্ট্যাটাস: পুনরায় সংযোগ হচ্ছে…");
+            showReconnectOverlay("রুমে আবার কানেক্ট হচ্ছে…");
             lastReconnectAttemptTs = 0;
             setupOnlineJoin(String(onlineRoomCode || "").trim().toUpperCase()).catch(() => {});
           }
           if (mode === "online_host" && onlineRoomCode) {
             setRoomStatus("pending", "রুম স্ট্যাটাস: পুনরায় খুলছে…");
+            showReconnectOverlay("রুম আবার খুলছে…");
             lastReconnectAttemptTs = 0;
             setupOnlineHost(String(onlineRoomCode || "").trim().toUpperCase()).catch(() => {});
           }
@@ -5239,6 +5451,16 @@
               // hostOfflineSinceTs will be cleared when we receive any message
             } else {
               if (hostOfflineSinceTs === null) hostOfflineSinceTs = now;
+              // Sometimes network is "online" but PeerJS signaling is stuck.
+              // After a short grace period, do one soft reload to recover quickly.
+              if (document.visibilityState === "visible" && hostOfflineSinceTs && (now - hostOfflineSinceTs) > 9000 && canAutoReload()) {
+                try {
+                  setJoinStatus("সংযোগ আটকে গেছে — অটো রিলোড হচ্ছে…", true);
+                  setRoomStatus("pending", "রুম স্ট্যাটাস: পুনরায় সংযোগ হচ্ছে…");
+                } catch {}
+                setTimeout(() => { try { location.reload(); } catch {} }, 250);
+                return;
+              }
               // Try reconnect when visible
               if (document.visibilityState === "visible" && autoReconnect) {
                 if ((now - lastReconnectAttemptTs) > 2500) {
