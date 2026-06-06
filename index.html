@@ -19,7 +19,9 @@
         --warn:#f6b01e;
         --bad:#ff4d4d;
         --accent:#7c5cff;
-        --bg-image: url('assets/home_bg.jpg');
+        --bg-image: url('assets/gaming_bg.jpg');
+        --glow: 0 18px 70px rgba(0,0,0,.45);
+        --glow2: 0 26px 120px rgba(124,92,255,.14);
       }
       *{box-sizing:border-box}
       body{
@@ -35,22 +37,40 @@
         position:fixed;
         inset:0;
         background:
-          radial-gradient(900px 600px at 20% 15%, rgba(124,92,255,.18), transparent 60%),
-          radial-gradient(900px 600px at 80% 25%, rgba(33,193,122,.15), transparent 65%),
-          radial-gradient(900px 600px at 50% 90%, rgba(246,176,30,.10), transparent 60%),
+          radial-gradient(900px 600px at 18% 18%, rgba(124,92,255,.26), transparent 60%),
+          radial-gradient(900px 600px at 82% 22%, rgba(61,120,255,.22), transparent 64%),
+          radial-gradient(900px 600px at 52% 92%, rgba(246,176,30,.18), transparent 60%),
+          radial-gradient(700px 500px at 70% 75%, rgba(255,77,77,.14), transparent 62%),
           var(--bg-image) center / cover no-repeat fixed;
-        filter:saturate(.95) contrast(1.05);
-        opacity:.95;
-        z-index:-2;
+        /* ব্যাকগ্রাউন্ড যেন উজ্জ্বল/ক্লিয়ার দেখা যায় */
+        filter:saturate(1.12) contrast(1.08) brightness(1.12);
+        opacity:1;
+        z-index:-4;
       }
       body::after{
         content:"";
         position:fixed;
         inset:0;
+        /* ডার্ক ওভারলে কমানো (উজ্জ্বল করার জন্য) */
         background:
-          linear-gradient(180deg, rgba(7,10,18,.75), rgba(11,18,34,.92)),
-          radial-gradient(900px 700px at 50% 20%, rgba(0,0,0,.15), transparent 62%);
-        z-index:-1;
+          linear-gradient(180deg, rgba(7,10,18,.38), rgba(11,18,34,.58)),
+          radial-gradient(900px 700px at 50% 20%, rgba(0,0,0,.06), transparent 62%);
+        z-index:-3;
+        animation:bgShift 18s ease-in-out infinite alternate;
+      }
+      @keyframes bgShift{
+        0%{ filter:hue-rotate(0deg) brightness(1.06); transform:translate3d(0,0,0) scale(1); }
+        100%{ filter:hue-rotate(10deg) brightness(1.10); transform:translate3d(0,-8px,0) scale(1.02); }
+      }
+      #fx-canvas{
+        position:fixed;
+        inset:0;
+        width:100vw;
+        height:100vh;
+        z-index:-2;
+        pointer-events:none;
+        opacity:.55;
+        mix-blend-mode:screen;
       }
       a{color:inherit}
       .container{max-width:1100px; margin:0 auto; padding:18px;}
@@ -79,9 +99,12 @@
         border-radius:12px;
         font-weight:800;
         cursor:pointer;
+        position:relative;
+        overflow:hidden;
+        box-shadow: 0 10px 30px rgba(0,0,0,.25);
         transition: transform .06s ease, background .15s ease, border-color .15s ease;
       }
-      .btn:hover{background:rgba(29,45,80,.75); border-color:#33538b}
+      .btn:hover{background:rgba(29,45,80,.75); border-color:#33538b; box-shadow: 0 16px 55px rgba(0,0,0,.35), 0 0 0 1px rgba(124,92,255,.12) inset}
       .btn:active{transform:scale(.98)}
       .btn:disabled{
         opacity:.45;
@@ -100,6 +123,34 @@
         backdrop-filter: blur(10px);
         border-radius:16px;
         padding:16px;
+        box-shadow: var(--glow);
+      }
+      .card:hover{ box-shadow: var(--glow), var(--glow2); }
+
+      /* Button ripple */
+      .ripple{
+        position:absolute;
+        border-radius:50%;
+        transform:scale(0);
+        background: radial-gradient(circle, rgba(255,255,255,.38), rgba(255,255,255,0) 60%);
+        animation:ripple .55s ease-out;
+        pointer-events:none;
+        mix-blend-mode:screen;
+      }
+      @keyframes ripple{
+        to{ transform:scale(4.2); opacity:0; }
+      }
+
+      /* Light shake (danger feedback) */
+      .shake{
+        animation: shake .32s ease-in-out;
+      }
+      @keyframes shake{
+        0%,100%{ transform:translate3d(0,0,0); }
+        20%{ transform:translate3d(-3px,0,0); }
+        40%{ transform:translate3d(3px,0,0); }
+        60%{ transform:translate3d(-2px,0,0); }
+        80%{ transform:translate3d(2px,0,0); }
       }
       .grid{
         display:grid;
@@ -246,6 +297,29 @@
         border-color: rgba(255,77,77,.45);
         background: rgba(255,77,77,.10);
       }
+      /* Revealed (dead/discarded) card image in player status */
+      .life.revealed.lifeImg{
+        width:64px;
+        height:40px;
+        padding:0;
+        border-radius:12px;
+        border-color: rgba(255,77,77,.55);
+        background-size: cover;
+        background-position: center;
+        position:relative;
+        overflow:hidden;
+        color: transparent;
+        text-decoration: none;
+      }
+      .life.revealed.lifeImg::after{
+        content:"";
+        position:absolute;
+        inset:0;
+        background:
+          linear-gradient(180deg, rgba(0,0,0,.05), rgba(0,0,0,.55)),
+          radial-gradient(140px 80px at 30% 20%, rgba(255,77,77,.20), transparent 70%);
+        pointer-events:none;
+      }
       .mycards{display:flex; flex-wrap:wrap; gap:12px; justify-content:center; margin-top:6px}
       .roleCard{
         width:170px;
@@ -288,6 +362,59 @@
       @media (min-width: 560px){
         .footerHint.prompt{ font-size:18px; padding:14px 16px; }
       }
+
+      /* Online mode: action hint media (challenge/reveal images) */
+      .actionMedia{
+        margin-top:12px;
+        display:flex;
+        flex-wrap:wrap;
+        gap:10px;
+        justify-content:center;
+      }
+      .previewCard{
+        width:140px;
+        height:90px;
+        border-radius:14px;
+        border:1px solid rgba(246,176,30,.35);
+        background:
+          linear-gradient(180deg, rgba(0,0,0,.10), rgba(0,0,0,.65)),
+          rgba(8,12,22,.55);
+        background-size:cover;
+        background-position:center;
+        position:relative;
+        overflow:hidden;
+        box-shadow: 0 18px 60px rgba(0,0,0,.35);
+      }
+      .previewCard::after{
+        content:"";
+        position:absolute;
+        inset:0;
+        background: radial-gradient(220px 110px at 30% 25%, rgba(124,92,255,.18), transparent 70%);
+        pointer-events:none;
+      }
+      .previewLabel{
+        position:absolute;
+        left:10px;
+        right:10px;
+        bottom:8px;
+        font-size:12px;
+        font-weight:1100;
+        text-shadow: 0 10px 30px rgba(0,0,0,.85);
+        letter-spacing:.2px;
+      }
+
+      /* Online mode: logs smaller, player status bigger; logs at bottom */
+      .sideStack{ display:flex; flex-direction:column; gap:14px; }
+      body.online-ui #panel-logs .logs{ height:180px; font-size:11px; }
+      body.online-ui #panel-players{ margin-top:0 !important; }
+      body.online-ui .players{
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap:14px;
+      }
+      body.online-ui .pbox{ padding:14px; border-radius:18px; }
+      body.online-ui .pname{ font-size:16px; }
+      body.online-ui .pcoins{ font-size:14px; }
+      body.online-ui .life{ font-size:12px; padding:6px 10px; border-radius:12px; }
       .modalBackdrop{
         position:fixed; inset:0;
         background:rgba(0,0,0,.68);
@@ -452,6 +579,7 @@
     </style>
   </head>
   <body>
+    <canvas id="fx-canvas"></canvas>
     <div class="container">
       <div id="topbar" class="topbar">
         <div class="brand">
@@ -711,10 +839,12 @@
               <div class="muted" style="font-weight:900;">অ্যাকশন</div>
               <div id="action-buttons" class="actions"></div>
               <div id="action-hint" class="footerHint"></div>
+              <!-- Online mode: challenge/reveal preview images -->
+              <div id="action-media" class="actionMedia hidden"></div>
             </div>
           </div>
 
-          <div class="panel">
+          <div id="panel-logs" class="panel">
             <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
               <b style="letter-spacing:1px">ইভেন্ট লগ</b>
             </div>
@@ -723,7 +853,10 @@
           </div>
         </div>
 
-        <div class="panel" style="margin-top:14px;">
+        <!-- Placeholder so we can move players panel only in online mode -->
+        <div id="players-placeholder"></div>
+
+        <div id="panel-players" class="panel" style="margin-top:14px;">
           <b>খেলোয়াড়দের অবস্থা</b>
           <div class="divider"></div>
           <div id="players" class="players"></div>
@@ -895,8 +1028,12 @@
       const myCardsEl = $("my-cards");
       const actionButtons = $("action-buttons");
       const actionHint = $("action-hint");
+      const actionMedia = $("action-media");
       const logsEl = $("logs");
       const playersEl = $("players");
+      const panelPlayers = $("panel-players");
+      const panelLogs = $("panel-logs");
+      const playersPlaceholder = $("players-placeholder");
       const btnNewMatch = $("btn-new-match");
       const gameOverPanel = $("gameover-panel");
       const winnerNameEl = $("winner-name");
@@ -933,6 +1070,78 @@
       // ---------- Game State (host/local authoritative) ----------
       let G = null;
       let lastTurnId = null;
+
+      // ------------------------------------------------------------
+      // AI learning (learn from online matches, apply in AI mode)
+      // - Data is stored locally in the browser (localStorage)
+      // - Only online host records learning to avoid double-counting
+      // ------------------------------------------------------------
+      const AI_LEARN_KEY = "shorojontro_ai_learn_v1";
+      function aiLearnDefaults() {
+        return {
+          v: 1,
+          claims: { total: 0, bluff: 0 },   // action claims
+          blocks: { total: 0, bluff: 0 },   // block claims
+          challenges: { total: 0, caught: 0 }, // caught = challenge succeeded (bluff)
+          updatedAt: 0,
+        };
+      }
+      function loadAiLearn() {
+        try {
+          const raw = localStorage.getItem(AI_LEARN_KEY);
+          if (!raw) return aiLearnDefaults();
+          const d = JSON.parse(raw);
+          const base = aiLearnDefaults();
+          return {
+            ...base,
+            ...d,
+            claims: { ...base.claims, ...(d.claims || {}) },
+            blocks: { ...base.blocks, ...(d.blocks || {}) },
+            challenges: { ...base.challenges, ...(d.challenges || {}) },
+          };
+        } catch {
+          return aiLearnDefaults();
+        }
+      }
+      function saveAiLearn() {
+        try {
+          aiLearn.updatedAt = Date.now();
+          localStorage.setItem(AI_LEARN_KEY, JSON.stringify(aiLearn));
+        } catch {}
+      }
+      let aiLearn = loadAiLearn();
+      function canRecordAiLearn() {
+        return (mode === "online_host") && isHost && !!G;
+      }
+      function recordClaim(kind, isBluff) {
+        if (!canRecordAiLearn()) return;
+        const box = kind === "block" ? aiLearn.blocks : aiLearn.claims;
+        box.total += 1;
+        if (isBluff) box.bluff += 1;
+        saveAiLearn();
+      }
+      function recordChallengeResult(caughtBluff) {
+        if (!canRecordAiLearn()) return;
+        aiLearn.challenges.total += 1;
+        if (caughtBluff) aiLearn.challenges.caught += 1;
+        saveAiLearn();
+      }
+
+      function applyLearnToAiParams(baseParams) {
+        const base = { bluff: 45, challenge: 35, aggression: 45, ...(baseParams || {}) };
+        const bluffRate = aiLearn.claims.total ? (aiLearn.claims.bluff / aiLearn.claims.total) : null;
+        const caughtRate = aiLearn.challenges.total ? (aiLearn.challenges.caught / aiLearn.challenges.total) : null;
+
+        // If humans bluff more, AI should challenge more.
+        if (bluffRate !== null) {
+          base.challenge = clamp(pct(base.challenge) + (bluffRate - 0.25) * 40, 5, 95);
+        }
+        // If bluffs are rarely caught, AI can bluff slightly more (and vice versa).
+        if (caughtRate !== null) {
+          base.bluff = clamp(pct(base.bluff) + (0.35 - caughtRate) * 35, 5, 95);
+        }
+        return base;
+      }
 
       // ------------------------------------------------------------
       // Sound FX (WebAudio) — Android friendly
@@ -975,23 +1184,92 @@
       const SFX_GAIN_MULT = 2.2;  // overall volume boost
       const SFX_GAIN_MAX = 0.25;  // safety cap to avoid harsh clipping
 
-      function tone(freq, ms, kind = "sine", gain = 0.075) {
+      let sfxOut = null; // { node, gain }
+      function getSfxOut(ctx) {
+        try {
+          if (sfxOut && sfxOut.node) return sfxOut;
+          const master = ctx.createGain();
+          const comp = ctx.createDynamicsCompressor();
+          comp.threshold.value = -22;
+          comp.knee.value = 22;
+          comp.ratio.value = 4.5;
+          comp.attack.value = 0.003;
+          comp.release.value = 0.18;
+          master.gain.value = 0.9;
+          master.connect(comp);
+          comp.connect(ctx.destination);
+          sfxOut = { node: master };
+          return sfxOut;
+        } catch {
+          return { node: ctx.destination };
+        }
+      }
+
+      function noiseBurst(ms = 60, gain = 0.04, hp = 650) {
         try {
           if (!audioEnabled) return;
           const ctx = ensureAudio();
           if (!ctx) return;
+          const out = getSfxOut(ctx).node;
+
+          const dur = Math.max(10, Math.min(240, Number(ms || 60))) / 1000;
+          const buffer = ctx.createBuffer(1, Math.max(1, Math.floor(ctx.sampleRate * dur)), ctx.sampleRate);
+          const data = buffer.getChannelData(0);
+          for (let i = 0; i < data.length; i++) data[i] = (randFloat() * 2 - 1) * (1 - i / data.length);
+
+          const src = ctx.createBufferSource();
+          src.buffer = buffer;
+          const filt = ctx.createBiquadFilter();
+          filt.type = "highpass";
+          filt.frequency.value = hp;
+          const g = ctx.createGain();
+
+          const finalGain = Math.min(SFX_GAIN_MAX, Math.max(0.0001, gain * SFX_GAIN_MULT));
+          const t = ctx.currentTime;
+          g.gain.setValueAtTime(0.0001, t);
+          g.gain.exponentialRampToValueAtTime(finalGain, t + 0.008);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+
+          src.connect(filt);
+          filt.connect(g);
+          g.connect(out);
+          src.start(t);
+          src.stop(t + dur + 0.02);
+        } catch {}
+      }
+
+      function tone(freq, ms, kind = "sine", gain = 0.075, opts) {
+        try {
+          if (!audioEnabled) return;
+          const ctx = ensureAudio();
+          if (!ctx) return;
+          const out = getSfxOut(ctx).node;
+
           const o = ctx.createOscillator();
           const g = ctx.createGain();
+          const f = ctx.createBiquadFilter();
+          f.type = "lowpass";
+          f.frequency.value = (opts && opts.lp) ? opts.lp : 18000;
+
+          const det = (opts && typeof opts.detune === "number") ? opts.detune : ((randFloat() * 2 - 1) * 10);
+          const slideTo = (opts && typeof opts.slideTo === "number") ? opts.slideTo : null;
+
           o.type = kind;
           o.frequency.value = freq;
+          o.detune.value = det;
           const finalGain = Math.min(SFX_GAIN_MAX, Math.max(0.0001, gain * SFX_GAIN_MULT));
           g.gain.value = 0.0001;
-          o.connect(g);
-          g.connect(ctx.destination);
           const t = ctx.currentTime;
+          if (slideTo) {
+            o.frequency.setValueAtTime(freq, t);
+            o.frequency.exponentialRampToValueAtTime(Math.max(30, slideTo), t + Math.max(0.03, ms / 1000));
+          }
           g.gain.setValueAtTime(0.0001, t);
           g.gain.exponentialRampToValueAtTime(finalGain, t + 0.01);
           g.gain.exponentialRampToValueAtTime(0.0001, t + ms / 1000);
+          o.connect(f);
+          f.connect(g);
+          g.connect(out);
           o.start(t);
           o.stop(t + ms / 1000 + 0.02);
         } catch {
@@ -1002,10 +1280,40 @@
       function sfx(type) {
         try {
           if (!audioEnabled) return;
-          if (type === "click") return tone(520, 55, "triangle", 0.075);
-          if (type === "modal") return tone(392, 90, "sine", 0.07);
-          if (type === "turn") return tone(660, 100, "triangle", 0.075);
-          if (type === "danger") return tone(170, 160, "sawtooth", 0.07);
+          // subtle variation
+          if (type === "click") {
+            tone(520, 55, "triangle", 0.070, { lp: 12000, detune: (randFloat() * 2 - 1) * 12 });
+            tone(820, 45, "sine", 0.028, { lp: 14000, detune: (randFloat() * 2 - 1) * 18 });
+            noiseBurst(40, 0.02, 1000);
+            return;
+          }
+          if (type === "modal") {
+            tone(392, 110, "sine", 0.060, { lp: 9000, detune: -6 });
+            tone(588, 95, "sine", 0.035, { lp: 9000, detune: 6 });
+            return;
+          }
+          if (type === "turn") {
+            tone(660, 90, "triangle", 0.070, { lp: 11000, detune: (randFloat() * 2 - 1) * 10 });
+            tone(990, 70, "sine", 0.028, { lp: 12000, detune: (randFloat() * 2 - 1) * 14 });
+            return;
+          }
+          if (type === "danger") {
+            tone(170, 180, "sawtooth", 0.060, { lp: 3800, slideTo: 120, detune: (randFloat() * 2 - 1) * 8 });
+            noiseBurst(120, 0.05, 500);
+            try { document.body?.classList?.add("shake"); setTimeout(() => document.body?.classList?.remove("shake"), 360); } catch {}
+            return;
+          }
+          if (type === "win") {
+            tone(523.25, 220, "sine", 0.045, { lp: 9000, detune: -4 }); // C
+            tone(659.25, 220, "sine", 0.040, { lp: 9000, detune: 2 });  // E
+            tone(783.99, 260, "triangle", 0.035, { lp: 9500, detune: 6 }); // G
+            return;
+          }
+          if (type === "lose") {
+            tone(392, 260, "sawtooth", 0.040, { lp: 4200, slideTo: 196, detune: 0 });
+            noiseBurst(160, 0.03, 450);
+            return;
+          }
         } catch {
           // ignore
         }
@@ -1534,19 +1842,87 @@
         `;
       }
 
+      function previewCardHTML(role, labelOverride) {
+        const img = ROLE_IMAGES?.[role] || null;
+        const label = labelOverride || role || "";
+        const safeLabel = escapeHTML(label);
+        const bg = img ? `background-image: linear-gradient(180deg, rgba(0,0,0,.08), rgba(0,0,0,.70)), url('${img}');` : "";
+        return `<div class="previewCard" style="${bg}"><div class="previewLabel">${safeLabel}</div></div>`;
+      }
+
+      // Game UI: move panels and tweak sizes (applies to all modes while playing)
+      function applyOnlineGameUILayout(isGameUI) {
+        try {
+          document.body.classList.toggle("online-ui", !!isGameUI);
+          const layout = document.querySelector(".layout-game");
+          if (!layout || !panelLogs || !panelPlayers || !playersPlaceholder) return;
+          const existing = document.getElementById("online-side-stack");
+          if (isGameUI) {
+            if (existing) return;
+            const stack = document.createElement("div");
+            stack.id = "online-side-stack";
+            stack.className = "sideStack";
+            // logs panel is the right column by default; replace it with a stack
+            if (panelLogs.parentElement === layout) {
+              layout.replaceChild(stack, panelLogs);
+            } else {
+              layout.appendChild(stack);
+            }
+            stack.appendChild(panelPlayers);
+            stack.appendChild(panelLogs);
+          } else {
+            if (!existing) return;
+            // put logs panel back to layout (2nd column), then restore players panel under the game layout
+            layout.insertBefore(panelLogs, existing);
+            existing.remove();
+            playersPlaceholder.after(panelPlayers);
+          }
+        } catch {}
+      }
+
+      // Online mode: show claimed card / dying card images near the challenge/reveal prompt
+      function renderActionMedia(isOnline, canAct) {
+        if (!actionMedia) return;
+        try {
+          actionMedia.classList.add("hidden");
+          actionMedia.innerHTML = "";
+          if (!isOnline || !canAct || !G?.awaitingInput?.meta) return;
+          const meta = G.awaitingInput.meta || {};
+
+          if (meta.kind === "challenge" && meta.role) {
+            actionMedia.innerHTML = previewCardHTML(meta.role, `দাবি: ${meta.role}`);
+            actionMedia.classList.remove("hidden");
+            return;
+          }
+          if (meta.kind === "block_challenge" && meta.role) {
+            actionMedia.innerHTML = previewCardHTML(meta.role, `ব্লক দাবি: ${meta.role}`);
+            actionMedia.classList.remove("hidden");
+            return;
+          }
+          if (meta.kind === "reveal" && Array.isArray(meta.roles)) {
+            actionMedia.innerHTML = meta.roles.map((r) => previewCardHTML(r)).join("");
+            actionMedia.classList.remove("hidden");
+            return;
+          }
+        } catch {}
+      }
+
       function render() {
         // background per screen (match reference screenshots)
         try {
-          if (mode === null) {
-            document.documentElement.style.setProperty("--bg-image", "url('assets/home_bg.jpg')");
-          } else if (!G) {
-            document.documentElement.style.setProperty("--bg-image", "url('assets/home_bg.jpg')");
-          } else {
-            document.documentElement.style.setProperty("--bg-image", "url('assets/game_bg.jpg')");
-          }
+          // সব স্ক্রিনে একই "গেমিং ফিল" ব্যাকগ্রাউন্ড
+          document.documentElement.style.setProperty("--bg-image", "url('assets/gaming_bg.jpg')");
         } catch {}
 
         const inGame = !!G;
+        // Winner FX (works for online join too, since render runs on clients)
+        try {
+          if (G && G.gameOver && !G._endFxFired) {
+            G._endFxFired = true;
+            sfx("win");
+            globalThis.__fxBurstConfetti && globalThis.__fxBurstConfetti(1);
+          }
+        } catch {}
         const isOnlineMode = mode === "online_host" || mode === "online_join";
         const inOnlineFlow =
           !inGame &&
@@ -1595,7 +1971,12 @@
         netPill.classList.toggle("hidden", !isOnline);
         if (isOnline) netPill.textContent = "🌐 অনলাইন";
 
-        if (!G) return;
+        if (!G) {
+          applyOnlineGameUILayout(false);
+          return;
+        }
+        // UI changes should apply in offline too (local/ai/online)
+        applyOnlineGameUILayout(true);
 
         // game over UI
         const isGameOver = !!G.gameOver;
@@ -1659,10 +2040,19 @@
             const btn = document.createElement("button");
             btn.className = "btn " + (opt.kind || "");
             btn.textContent = opt.label;
-            btn.onclick = () => sendInput(opt.value);
+            const disabled = !!opt.disabled;
+            if (disabled) {
+              btn.disabled = true;
+              btn.title = opt.disabledHint || "এখনো খেলা যাবে না";
+            }
+            btn.onclick = () => {
+              if (btn.disabled) return;
+              sendInput(opt.value);
+            };
             actionButtons.appendChild(btn);
           }
         }
+        renderActionMedia(isOnline, canAct);
 
         // logs
         logsEl.innerHTML = G.log
@@ -1676,9 +2066,17 @@
           .map((p) => {
             const isCur = p.id === G.currentPlayerId;
             const dead = p.hand.length === 0;
+            const revealedHTML = (p.revealed || [])
+              .map((r) => {
+                const img = ROLE_IMAGES?.[r] || null;
+                const bg = img ? `background-image:url('${img}');` : "";
+                const title = escapeHTML(r || "");
+                return `<span class="life revealed lifeImg" style="${bg}" title="${title}"></span>`;
+              })
+              .join("");
             const livesHTML =
               new Array(p.hand.length).fill(0).map(() => `<span class="life">?</span>`).join("") +
-              p.revealed.map((r) => `<span class="life revealed">${r}</span>`).join("");
+              revealedHTML;
             return `
               <div class="pbox ${isCur ? "current" : ""} ${dead ? "dead" : ""}">
                 <div class="pname">${p.name}${p.isAI ? " 🤖" : ""}</div>
@@ -2222,11 +2620,14 @@
           p.hand = p.hand.filter(Boolean);
         }
 
+        const baseAi = aiParams || { bluff: 45, challenge: 35, aggression: 45 };
+        const finalAi = withAI ? applyLearnToAiParams(baseAi) : baseAi;
+
         G = {
           version: 1,
           gameOver: null, // { winnerId, winnerName }
           settings: {
-            ai: aiParams || { bluff: 45, challenge: 35, aggression: 45 },
+            ai: finalAi,
             rolesPool: pool,
           },
           players,
@@ -2266,7 +2667,8 @@
       function setAwaiting(playerId, hint, options, cfg) {
         cfg = cfg || {};
         const noLocalPass = !!cfg.noLocalPass;
-        G.awaitingInput = { playerId, hint, options };
+        const meta = cfg.meta || null;
+        G.awaitingInput = { playerId, hint, options, meta };
 
         // লোকাল (পাস-এন্ড-প্লে) মোডে:
         // আগে মাই-ভিউয়ার আপডেট করে দিই—যাতে মোডাল/অডিও/ব্রাউজার ইস্যু হলেও
@@ -2378,9 +2780,15 @@
         opts.push({ label: BASIC_ACTIONS.income.label, value: { t: "action", a: "income" }, kind: "" });
         opts.push({ label: BASIC_ACTIONS.foreign_aid.label, value: { t: "action", a: "foreign_aid" }, kind: "" });
 
-        // হত্যা/কুপ (৭ কয়েন): অপশনটা সবসময় দেখাব, তবে কয়েন কম হলে সিলেক্ট করলে টার্ন নষ্ট না করে আবার অ্যাকশন বাছাই করতে দেবে।
+        // হত্যা/কুপ (৭ কয়েন): কয়েন না হলে বাটন ডিসেবল (user requirement)
         const coupLabel = actor.coins >= 7 ? BASIC_ACTIONS.coup.label : `${BASIC_ACTIONS.coup.label} — (৭ কয়েন লাগবে)`;
-        opts.push({ label: coupLabel, value: { t: "action", a: "coup" }, kind: actor.coins >= 7 ? "danger" : "" });
+        opts.push({
+          label: coupLabel,
+          value: { t: "action", a: "coup" },
+          kind: actor.coins >= 7 ? "danger" : "",
+          disabled: actor.coins < 7,
+          disabledHint: "৭ কয়েন না হওয়া পর্যন্ত এই অ্যাকশন খেলা যাবে না",
+        });
 
         // Role actions (লবি থেকে সিলেক্টেড ৫টি রোল)
         const pool = (G?.settings?.rolesPool && G.settings.rolesPool.length ? G.settings.rolesPool : DEFAULT_ROLE_POOL).slice();
@@ -2459,6 +2867,12 @@
           askAction(cur.id);
           return;
         }
+
+        // Online learning: record whether the claim is truth/bluff (host only)
+        try {
+          const isTruth = (cur.hand || []).includes(claimedRole);
+          recordClaim("claim", !isTruth);
+        } catch {}
 
         // ট্যাক্স সিস্টেম: ট্যাক্সড রোলের অ্যাকশন খেলতে হলে আগে ১ কয়েন ট্যাক্স দিতে হবে
         if (!payRoleTaxIfNeeded(cur.id, claimedRole)) {
@@ -2652,7 +3066,7 @@
         setAwaiting(next, `${actor.name} ${label} দাবি করেছে। চ্যালেঞ্জ করবেন?`, [
           { label: "চ্যালেঞ্জ! 🛑", value: { t: "challenge", yes: true }, kind: "danger" },
           { label: "পাস", value: { t: "challenge", yes: false }, kind: "" },
-        ]);
+        ], { meta: { kind: "challenge", role } });
       }
 
       function onChallengeResponse(v) {
@@ -2770,6 +3184,11 @@
         }
         p.block = { blockerId: expected, role: v.role };
         const blocker = getPlayer(expected);
+        // Online learning: record whether the block claim is truth/bluff (host only)
+        try {
+          const isTruth = (blocker?.hand || []).includes(v.role);
+          recordClaim("block", !isTruth);
+        } catch {}
         log(`🛡️ ${blocker.name} দাবি করেছে সে “${v.role}” এবং অ্যাকশন ব্লক করবে।`);
         askBlockChallengeDecision();
       }
@@ -2783,7 +3202,7 @@
         setAwaiting(p.actorId, `${blocker.name} “${block.role}” দাবি করে ব্লক করেছে। আপনি কী করবেন?`, [
           { label: "ব্লক মেনে নিন (অ্যাকশন বাতিল)", value: { t: "block_decide", challenge: false }, kind: "" },
           { label: "ব্লক চ্যালেঞ্জ! 🛑", value: { t: "block_decide", challenge: true }, kind: "danger" },
-        ]);
+        ], { meta: { kind: "block_challenge", role: block.role } });
         if (mode === "local") ensureLocalViewer(p.actorId).then(() => {});
       }
 
@@ -2817,6 +3236,8 @@
         log(`🛑 ${challenger.name} ${challenged.name}-কে চ্যালেঞ্জ করেছে!`);
 
         const has = challenged.hand.includes(neededRole);
+        // Online learning: challenge outcome (caught bluff or not)
+        try { recordChallengeResult(!has); } catch {}
         if (has) {
           log(`✅ ${challenged.name} সত্যি “${neededRole}” দেখাতে পেরেছে। চ্যালেঞ্জার ১ লাইফ হারাবে।`);
           // swap shown card: remove one instance and replace from deck
@@ -2839,7 +3260,7 @@
         G.pending.stage = "reveal";
         G.pending.reveal = { playerId, afterRevealCb: afterRevealCb || null };
         const options = p.hand.map((r) => ({ label: r, value: { t: "reveal", role: r }, kind: "danger" }));
-        setAwaiting(playerId, `${reasonTitle}: ${promptText}`, options);
+        setAwaiting(playerId, `${reasonTitle}: ${promptText}`, options, { meta: { kind: "reveal", roles: (p.hand || []).slice(), reasonTitle } });
         if (mode === "local") ensureLocalViewer(playerId).then(() => {});
       }
 
@@ -3667,14 +4088,25 @@
         const st = aiGetState(me);
 
         const scoreOpt = (o) => {
+          if (o?.disabled) return -1e15;
           const a = o?.value?.a;
           const role = o?.value?.role || null;
           const isTruth = role ? me.hand.includes(role) : false;
           const lives = me.hand.length || 2;
           const richTargetExists = G.players.some((p) => p.id !== me.id && p.hand.length > 0 && (p.coins || 0) >= 4);
           const killTargetExists = G.players.some((p) => p.id !== me.id && p.hand.length === 1);
+          const haveCoins = me.coins || 0;
 
-          let score = randFloat() * 1.5;
+          // Affordability: never pick unplayable actions
+          const taxCost = role ? getTaxCostForRole(role) : 0;
+          const roleCost = role ? (ROLE_INFO?.[role]?.action?.cost || 0) : 0;
+          const needCoins =
+            (a === "coup") ? 7 :
+            (a === "income" || a === "foreign_aid") ? 0 :
+            (roleCost + taxCost);
+          if (needCoins > haveCoins) return -1e15;
+
+          let score = randFloat() * 0.6; // less randomness → more pattern
           // Economy / safe
           if (a === "income") score += 7;
           if (a === "foreign_aid") score += 9;
@@ -3735,7 +4167,23 @@
           const s = scoreOpt(o);
           if (s > bestScore) { bestScore = s; best = o; }
         }
-        return best || opts.find((o) => o.value?.a === "income") || opts[0];
+        const pick = best || opts.find((o) => o.value?.a === "income" && !o.disabled) || opts.find((o) => !o.disabled) || opts[0];
+
+        // If we pick a targeted attack, pre-plan the target so target-pick is consistent (pattern)
+        try {
+          const a = pick?.value?.a;
+          if (a === "coup" || a === "assassinate" || a === "betal" || a === "steal") {
+            const others = (G?.players || []).filter((p) => p.id !== me.id && (p.hand?.length || 0) > 0);
+            const oneLife = others.filter((p) => (p.hand?.length || 0) === 1);
+            const target =
+              (oneLife.sort((x, y) => (y.coins || 0) - (x.coins || 0))[0])
+              || (others.sort((x, y) => (y.coins || 0) - (x.coins || 0))[0])
+              || null;
+            if (target) st.plan = { a, targetId: target.id, untilTs: Date.now() + 6 * 60 * 1000 };
+          }
+        } catch {}
+
+        return pick;
       }
 
       function aiRespond(playerId) {
@@ -4087,6 +4535,150 @@
       };
 
       // ------------------------------------------------------------
+      // UI FX (particles + confetti + ripple)
+      // ------------------------------------------------------------
+      const fxCanvas = document.getElementById("fx-canvas");
+      let fxCtx = null;
+      let fxW = 0, fxH = 0, fxDpr = 1;
+      let fxParticles = [];
+      let fxConfetti = [];
+      let fxLastTs = 0;
+
+      function fxResize() {
+        try {
+          if (!fxCanvas) return;
+          fxDpr = Math.min(2, window.devicePixelRatio || 1);
+          fxW = Math.max(1, Math.floor(window.innerWidth));
+          fxH = Math.max(1, Math.floor(window.innerHeight));
+          fxCanvas.width = Math.floor(fxW * fxDpr);
+          fxCanvas.height = Math.floor(fxH * fxDpr);
+          fxCanvas.style.width = fxW + "px";
+          fxCanvas.style.height = fxH + "px";
+          fxCtx = fxCanvas.getContext("2d");
+          if (fxCtx) fxCtx.setTransform(fxDpr, 0, 0, fxDpr, 0, 0);
+        } catch {}
+      }
+
+      function fxInitParticles() {
+        try {
+          const n = 70;
+          fxParticles = [];
+          for (let i = 0; i < n; i++) {
+            fxParticles.push({
+              x: randFloat() * fxW,
+              y: randFloat() * fxH,
+              r: 0.8 + randFloat() * 2.4,
+              vx: -8 + randFloat() * 16,
+              vy: -6 + randFloat() * 12,
+              a: 0.10 + randFloat() * 0.20,
+              c: randChoice(["rgba(124,92,255,", "rgba(33,193,122,", "rgba(246,176,30,"])
+            });
+          }
+        } catch {}
+      }
+
+      function fxBurstConfetti(intensity = 1) {
+        try {
+          const count = Math.floor(120 * clamp(intensity, 0.6, 1.8));
+          const cx = fxW / 2, cy = Math.max(140, fxH * 0.35);
+          for (let i = 0; i < count; i++) {
+            fxConfetti.push({
+              x: cx + (randFloat() * 120 - 60),
+              y: cy + (randFloat() * 60 - 30),
+              vx: (randFloat() * 2 - 1) * (120 + randFloat() * 220),
+              vy: - (180 + randFloat() * 380),
+              g: 620 + randFloat() * 420,
+              r: 2 + randFloat() * 4,
+              w: 6 + randFloat() * 8,
+              h: 2 + randFloat() * 6,
+              rot: randFloat() * Math.PI,
+              vr: (randFloat() * 2 - 1) * 9,
+              life: 1.8 + randFloat() * 1.2,
+              c: randChoice(["#21c17a", "#7c5cff", "#f6b01e", "#3d78ff", "#ff4d4d"]),
+            });
+          }
+        } catch {}
+      }
+
+      function fxTick(ts) {
+        try {
+          if (!fxCtx || !fxW || !fxH) return requestAnimationFrame(fxTick);
+          const t = (ts || 0) / 1000;
+          const dt = Math.min(0.033, Math.max(0.001, ((ts || 0) - (fxLastTs || ts || 0)) / 1000));
+          fxLastTs = ts || 0;
+
+          fxCtx.clearRect(0, 0, fxW, fxH);
+
+          // soft particles
+          for (const p of fxParticles) {
+            p.x += p.vx * dt;
+            p.y += p.vy * dt;
+            if (p.x < -60) p.x = fxW + 60;
+            if (p.x > fxW + 60) p.x = -60;
+            if (p.y < -60) p.y = fxH + 60;
+            if (p.y > fxH + 60) p.y = -60;
+            const pulse = 0.7 + 0.3 * Math.sin(t * 0.9 + p.r);
+            fxCtx.beginPath();
+            fxCtx.fillStyle = p.c + (p.a * pulse).toFixed(3) + ")";
+            fxCtx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+            fxCtx.fill();
+          }
+
+          // confetti
+          if (fxConfetti.length) {
+            const next = [];
+            for (const c of fxConfetti) {
+              c.life -= dt;
+              if (c.life <= 0) continue;
+              c.vy += c.g * dt;
+              c.x += c.vx * dt;
+              c.y += c.vy * dt;
+              c.rot += c.vr * dt;
+              if (c.y > fxH + 80) continue;
+              next.push(c);
+              fxCtx.save();
+              fxCtx.translate(c.x, c.y);
+              fxCtx.rotate(c.rot);
+              fxCtx.fillStyle = c.c;
+              fxCtx.globalAlpha = Math.max(0, Math.min(1, c.life / 1.4));
+              fxCtx.fillRect(-c.w / 2, -c.h / 2, c.w, c.h);
+              fxCtx.restore();
+              fxCtx.globalAlpha = 1;
+            }
+            fxConfetti = next;
+          }
+
+          requestAnimationFrame(fxTick);
+        } catch {
+          requestAnimationFrame(fxTick);
+        }
+      }
+
+      function createRipple(btn, ev) {
+        try {
+          if (!btn) return;
+          const r = document.createElement("span");
+          r.className = "ripple";
+          const rect = btn.getBoundingClientRect();
+          const x = (ev?.clientX ?? (rect.left + rect.width / 2)) - rect.left;
+          const y = (ev?.clientY ?? (rect.top + rect.height / 2)) - rect.top;
+          const size = Math.max(rect.width, rect.height);
+          r.style.width = r.style.height = size + "px";
+          r.style.left = (x - size / 2) + "px";
+          r.style.top = (y - size / 2) + "px";
+          btn.appendChild(r);
+          setTimeout(() => { try { r.remove(); } catch {} }, 650);
+        } catch {}
+      }
+
+      // Boot FX
+      fxResize();
+      fxInitParticles();
+      window.addEventListener("resize", () => { fxResize(); fxInitParticles(); }, { passive: true });
+      requestAnimationFrame(fxTick);
+      try { globalThis.__fxBurstConfetti = fxBurstConfetti; } catch {}
+
+      // ------------------------------------------------------------
       // Event wiring
       // ------------------------------------------------------------
       btnHome.onclick = () => resetAll();
@@ -4105,7 +4697,13 @@
         "click",
         (e) => {
           const t = e.target;
-          if (t && t.closest && t.closest(".btn")) sfx("click");
+          if (t && t.closest) {
+            const b = t.closest(".btn");
+            if (b) {
+              sfx("click");
+              createRipple(b, e);
+            }
+          }
         },
         true
       );

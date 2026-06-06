@@ -1,4 +1,4 @@
-const CACHE = "shorojontro-v3";
+const CACHE = "shorojontro-v5";
 
 // Works on root deploy (Render) and subpath deploy (GitHub Pages)
 const SCOPE_URL = new URL(self.registration.scope);
@@ -18,6 +18,8 @@ const PRECACHE = [
   abs("assets/home_bg.jpg"),
   abs("assets/game_bg.jpg"),
   abs("assets/pass_bg.jpg"),
+  abs("assets/ui_bg.jpg"),
+  abs("assets/gaming_bg.jpg"),
 
   // icons
   abs("icons/icon-192.png"),
