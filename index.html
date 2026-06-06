@@ -544,6 +544,29 @@
       .statusDot.pending{background:#f59e0b;} /* amber */
       .statusDot.open{background:#22c55e;} /* green */
       .statusDot.error{background:#ef4444;} /* red */
+      .liveDot{
+        width:10px; height:10px;
+        border-radius:999px;
+        background:#22c55e;
+        display:inline-block;
+        box-shadow: 0 0 0 3px rgba(34,197,94,.16), 0 0 18px rgba(34,197,94,.25);
+        flex:0 0 auto;
+      }
+      .liveDot.off{
+        background:#ef4444;
+        box-shadow: 0 0 0 3px rgba(239,68,68,.14), 0 0 18px rgba(239,68,68,.22);
+      }
+      .offlineTag{
+        display:inline-flex;
+        align-items:center;
+        padding:3px 8px;
+        border-radius:999px;
+        font-size:11px;
+        font-weight:1000;
+        border:1px solid rgba(239,68,68,.35);
+        color:#ffd4d4;
+        background:rgba(239,68,68,.12);
+      }
       .lobbyLeft{display:flex; align-items:center; gap:10px; font-weight:1100}
       .lobbyLeft .pin{opacity:.85}
       .lobbyRight{color:rgba(235,243,255,.55); font-weight:900}
@@ -1062,6 +1085,9 @@
       let onlineSelfName = "";
       let clientLobbyInfo = null; // join side: {roomCode, hostName, joinNames[]}
       let autoReconnect = true;
+      let hostLastSeenTs = 0; // join side: last time we heard from host
+      let hostOfflineSinceTs = null; // join side: when host became unreachable
+      let lastReconnectAttemptTs = 0;
 
       // লবি রোল সিলেকশন (১০ থেকে ৫)
       let lobbySelectedRoles = new Set(DEFAULT_ROLE_POOL);
@@ -1071,6 +1097,16 @@
       let G = null;
       let lastTurnId = null;
       let lastMatchConfig = null; // for "Restart the Match" in Local/AI
+
+      // Online presence / timeouts
+      const PRESENCE_STALE_MS = 15 * 1000;     // if no ping within this window -> offline
+      const JOINER_KICK_MS = 2 * 60 * 1000;    // joiner offline > 2 min -> kick (pre-game)
+      const HOST_CLOSE_MS = 5 * 60 * 1000;     // host offline > 5 min -> close room for everyone
+
+      function markHostSeen() {
+        hostLastSeenTs = Date.now();
+        hostOfflineSinceTs = null;
+      }
 
       // ------------------------------------------------------------
       // AI learning (learn from online matches, apply in AI mode)
@@ -1425,12 +1461,23 @@
 
           // Restore online join (best-effort): auto re-join same room.
           if (s.mode === "online_join" && s.onlineRoomCode) {
-            showLobby("online_join");
+            // NOTE: do NOT push user back to join screen. Keep them inside the room UI and auto-reconnect.
+            mode = "online_join";
+            isHost = false;
+            onlineJoinStage = s.onlineJoinStage || "wait";
+            onlineRoomCode = String(s.onlineRoomCode || "").trim().toUpperCase();
             if (inpName && s.selfName) inpName.value = s.selfName;
-            if (inpRoom) inpRoom.value = String(s.onlineRoomCode || "");
-            if (btnJoin) btnJoin.disabled = true;
+            // Restore last known (sanitized) state so user stays "inside"
+            if (s.G) {
+              G = s.G;
+              myPlayerId = s.myPlayerId || null;
+            }
+            lastTurnId = null;
+            try { hideModal(); } catch {}
+            render();
             setJoinStatus("রিলোডের পরে আবার সংযোগ হচ্ছে…", true);
-            await setupOnlineJoin(String(s.onlineRoomCode || "").trim().toUpperCase());
+            await setupOnlineJoin(onlineRoomCode);
+            markHostSeen();
             return true;
           }
         } catch {
@@ -2073,6 +2120,10 @@
           .map((p) => {
             const isCur = p.id === G.currentPlayerId;
             const dead = p.hand.length === 0;
+            const pres = (!p.isAI && G?.presence && G.presence[p.id]) ? G.presence[p.id] : null;
+            const statusBadge = pres
+              ? (pres.online ? `<span class="liveDot" title="Online"></span>` : `<span class="offlineTag">Offline</span>`)
+              : "";
             const revealedHTML = (p.revealed || [])
               .map((r) => {
                 const img = ROLE_IMAGES?.[r] || null;
@@ -2086,7 +2137,10 @@
               revealedHTML;
             return `
               <div class="pbox ${isCur ? "current" : ""} ${dead ? "dead" : ""}">
-                <div class="pname">${p.name}${p.isAI ? " 🤖" : ""}</div>
+                <div class="pname" style="display:flex; align-items:center; gap:8px;">
+                  ${statusBadge}
+                  <span>${p.name}${p.isAI ? " 🤖" : ""}</span>
+                </div>
                 <div class="pcoins">🪙 ${p.coins}</div>
                 <div class="plives">${livesHTML}</div>
               </div>
@@ -2181,28 +2235,36 @@
         // Host view uses local lobbyJoined; join view uses clientLobbyInfo (sent from host)
         const isJoinSide = mode === "online_join";
         const info = isJoinSide ? (clientLobbyInfo || null) : null;
-        const joined = isJoinSide ? Math.max(0, (info?.joinNames?.length || 0)) : lobbyJoinCount();
-        const total = isJoinSide ? clamp((info?.joinNames?.length || 0) + 1, 1, 6) : clamp(joined + 1, 1, 6);
+        const joined = isJoinSide ? Math.max(0, (info?.joinNames?.length || info?.joiners?.length || 0)) : lobbyJoinCount();
+        const total = isJoinSide
+          ? clamp((info?.joinNames?.length || info?.joiners?.length || 0) + 1, 1, 6)
+          : clamp(joined + 1, 1, 6);
         if (waitCountEl) waitCountEl.textContent = String(total);
 
         const names = [];
         if (isJoinSide && info) {
-          const all = [info.hostName || "Host", ...(info.joinNames || [])];
+          const joinArr = Array.isArray(info.joiners) && info.joiners.length
+            ? info.joiners.map((x) => ({ name: x?.name, online: x?.online !== false }))
+            : (info.joinNames || []).map((nm) => ({ name: nm, online: true }));
+          const all = [{ name: info.hostName || "Host", online: info.hostOnline !== false }, ...joinArr];
           let marked = false;
-          for (const nm of all) {
-            const clean = normalizeName(nm, "Player");
+          for (const it of all) {
+            const clean = normalizeName(it?.name, "Player");
             const me = (!marked) && onlineSelfName && clean === normalizeName(onlineSelfName, "Player");
             if (me) marked = true;
-            names.push({ name: clean, me });
+            names.push({ name: clean, me, online: it?.online !== false });
           }
         } else if (isJoinSide && !info) {
           // fallback: show only self until host sends lobby info
-          names.push({ name: normalizeName(onlineSelfName || "Player", "Player"), me: true });
+          names.push({ name: normalizeName(onlineSelfName || "Player", "Player"), me: true, online: true });
         } else {
           const hostName = normalizeName(onlineSelfName || inpName.value, "Player");
-          names.push({ name: hostName, me: true });
-          for (const nm of lobbyJoined.values()) {
-            names.push({ name: normalizeName(nm, "Player"), me: false });
+          names.push({ name: hostName, me: true, online: true });
+          for (const [tempId, nm] of lobbyJoined.entries()) {
+            const conn = connections.get(tempId);
+            const last = conn?._lastSeen || 0;
+            const online = !!(conn && conn.open && (Date.now() - last) < PRESENCE_STALE_MS);
+            names.push({ name: normalizeName(nm, "Player"), me: false, online });
           }
         }
 
@@ -2210,9 +2272,12 @@
           waitListEl.innerHTML = names
             .slice(0, 6)
             .map((p) => {
+              const dot = p.online
+                ? `<span class="liveDot" title="Online"></span>`
+                : `<span class="liveDot off" title="Offline"></span><span class="offlineTag">Offline</span>`;
               return `
                 <div class="lobbyItem">
-                  <div class="lobbyLeft"><span class="pin">⚓</span> <span>${escapeHTML(p.name)}</span></div>
+                  <div class="lobbyLeft"><span class="pin">⚓</span> ${dot} <span>${escapeHTML(p.name)}</span></div>
                   <div class="lobbyRight">${p.me ? "(আপনি)" : ""}</div>
                 </div>
               `;
@@ -2233,9 +2298,26 @@
         if (!isHost) return;
         if (!mode || mode !== "online_host") return;
         if (!onlineRoomCode) return;
+        // Only for pre-game waiting lobby. After game starts, never push clients back to lobby UI.
+        if (G) return;
         const hostName = normalizeName(onlineSelfName || inpName.value, "Player");
-        const joinNames = [...lobbyJoined.values()].map((n) => normalizeName(n, "Player")).slice(0, 5);
-        const msg = { type: "lobby", roomCode: onlineRoomCode, hostName, joinNames };
+        const joiners = [...lobbyJoined.entries()]
+          .slice(0, 5)
+          .map(([tempId, nm]) => {
+            const conn = connections.get(tempId);
+            const last = conn?._lastSeen || 0;
+            const online = !!(conn && conn.open && (Date.now() - last) < PRESENCE_STALE_MS);
+            return { name: normalizeName(nm, "Player"), online };
+          });
+        const joinNames = joiners.map((j) => j.name);
+        const msg = {
+          type: "lobby",
+          roomCode: onlineRoomCode,
+          hostName,
+          hostOnline: true,
+          joinNames, // backward compatible
+          joiners,
+        };
         for (const [, conn] of connections.entries()) {
           if (!conn || !conn._accepted) continue;
           try { conn.send(msg); } catch {}
@@ -2259,6 +2341,7 @@
 
         // Load PeerJS dynamically (so local/ai doesn't depend on it)
         await loadPeerJs();
+        try { if (peer) peer.destroy(); } catch {}
         peer = new Peer(roomCode, peerClientConfig());
 
         peer.on("open", () => {
@@ -2268,6 +2351,7 @@
         });
         peer.on("connection", (conn) => {
           const tempId = uid();
+          try { conn._lastSeen = Date.now(); } catch {}
           connections.set(tempId, conn);
           conn.on("data", (data) => onHostData(tempId, data));
           conn.on("close", () => {
@@ -2301,11 +2385,13 @@
         conn.on("open", () => {
           logToConsole("connected to host");
           conn.send({ type: "hello", name: inpName.value.trim() || "Player", rid: getReconnectId() });
+          markHostSeen();
         });
         conn.on("data", (data) => onClientData(conn, data));
         conn.on("error", (e) => logToConsole("conn error: " + e));
         conn.on("close", () => {
           // Host রিলোড/ডিসকানেক্ট হলে ক্লায়েন্ট অটো রিকানেক্ট করবে (রুম কোড একই থাকে)
+          if (hostOfflineSinceTs === null) hostOfflineSinceTs = Date.now();
           if (!autoReconnect) return;
           if (mode !== "online_join") return;
           const code = String(onlineRoomCode || "").trim().toUpperCase();
@@ -2352,8 +2438,15 @@
 
       function onHostData(tempConnId, data) {
         if (!data || typeof data !== "object") return;
+        const conn = connections.get(tempConnId);
+        try { if (conn) conn._lastSeen = Date.now(); } catch {}
+
+        // heartbeat from client (presence)
+        if (data.type === "ping") {
+          try { conn && conn.open && conn.send({ type: "pong", ts: Date.now() }); } catch {}
+          return;
+        }
         if (data.type === "hello") {
-          const conn = connections.get(tempConnId);
           if (!conn) return;
           const rid = data.rid ? String(data.rid) : null;
           conn._rid = rid;
@@ -2434,6 +2527,21 @@
 
       function onClientData(conn, data) {
         if (!data || typeof data !== "object") return;
+        // Any incoming message means host is reachable
+        markHostSeen();
+        if (data.type === "pong") {
+          // keepalive ack
+          return;
+        }
+        if (data.type === "kicked") {
+          showModal({
+            title: "রুম থেকে বের করা হয়েছে",
+            text: data.reason || "দীর্ঘ সময় অফলাইন থাকার কারণে আপনাকে রুম থেকে বের করা হয়েছে।",
+            buttons: [{ label: "OK", value: true, kind: "primary" }],
+          }).then(() => resetAll());
+          try { conn.close(); } catch {}
+          return;
+        }
         if (data.type === "hello_ack") {
           setJoinStatus("জয়েন হয়েছে। হোস্ট গেম সেটআপ/স্টার্ট করলে আপনি স্বয়ংক্রিয়ভাবে ঢুকে যাবেন।", true);
           setRoomStatus("open", "রুম স্ট্যাটাস: সংযুক্ত ✅");
@@ -2444,7 +2552,9 @@
           clientLobbyInfo = {
             roomCode: data.roomCode || onlineRoomCode,
             hostName: data.hostName || "Host",
+            hostOnline: data.hostOnline !== false,
             joinNames: Array.isArray(data.joinNames) ? data.joinNames : [],
+            joiners: Array.isArray(data.joiners) ? data.joiners : null,
           };
           // Move to waiting lobby UI
           showOnlineFlow("wait", { roomCode: clientLobbyInfo.roomCode, isHostView: false });
@@ -2502,10 +2612,33 @@
 
         if (!mode || !mode.startsWith("online")) return;
         if (!isHost) return;
+        if (!G) return;
+
+        // Presence map (for showing online/offline dots)
+        try {
+          const now = Date.now();
+          const presence = {};
+          // host (always online)
+          if (myPlayerId) presence[myPlayerId] = { online: true, lastSeen: now };
+          // clients
+          for (const [, c] of connections.entries()) {
+            if (!c || !c._accepted) continue;
+            const pid = c._playerId;
+            if (!pid) continue;
+            const last = c._lastSeen || 0;
+            const online = !!(c.open && (now - last) < PRESENCE_STALE_MS);
+            presence[pid] = { online, lastSeen: last || 0 };
+          }
+          // mark any other human players as offline (safe default)
+          for (const p of (G.players || [])) {
+            if (p?.isAI) continue;
+            if (!presence[p.id]) presence[p.id] = { online: p.id === myPlayerId, lastSeen: p.id === myPlayerId ? now : 0 };
+          }
+          G.presence = presence;
+        } catch {}
         // assign connection -> player if not assigned (first time game started)
         // We do it lazily when game exists.
         if (!G) return;
-        for (const [tempId, conn] of connections.entries()) {
           if (!conn._accepted) continue;
           if (conn._playerId) continue;
           // Reconnect support: if client has rid and a matching player exists, re-assign.
@@ -2517,6 +2650,7 @@
               continue;
             }
           }
+
 
           // Assign to the next unassigned non-AI player excluding host
           const unassigned = G.players.filter((p) => !p.isAI && p.id !== myPlayerId);
@@ -2580,6 +2714,21 @@
           const conn = connections.get("host");
           if (conn && conn.open) {
             conn.send({ type: "input", playerId: myPlayerId, value });
+          } else {
+            // Host is offline / connection lost
+            setJoinStatus("হোস্ট অফলাইন — পুনরায় সংযোগ হচ্ছে…", true);
+            const code = String(onlineRoomCode || "").trim().toUpperCase();
+            if (autoReconnect && code && (Date.now() - lastReconnectAttemptTs) > 1200) {
+              lastReconnectAttemptTs = Date.now();
+              setupOnlineJoin(code).catch(() => {});
+            }
+            showModal({
+              title: "সংযোগ নেই",
+              text: "হোস্টের সাথে সংযোগ নেই। পুনরায় সংযোগের চেষ্টা চলছে…",
+              buttons: [{ label: "ঠিক আছে", value: true, kind: "primary" }],
+            });
+            saveSession();
+            return;
           }
           saveSession();
           return;
@@ -5014,6 +5163,76 @@
       }
       window.addEventListener("online", updateConnectivityUI);
       window.addEventListener("offline", updateConnectivityUI);
+
+      // ------------------------------------------------------------
+      // Online maintenance: keepalive, auto-reconnect, offline timeouts
+      // ------------------------------------------------------------
+      function onlineMaintenanceTick() {
+        const now = Date.now();
+        try {
+          // JOIN side: ping host + auto reconnect + auto close room after long offline
+          if (mode === "online_join" && onlineRoomCode) {
+            const conn = connections.get("host");
+            const ok = !!(conn && conn.open);
+            if (ok) {
+              try { conn.send({ type: "ping", ts: now }); } catch {}
+              // hostOfflineSinceTs will be cleared when we receive any message
+            } else {
+              if (hostOfflineSinceTs === null) hostOfflineSinceTs = now;
+              // Try reconnect when visible
+              if (document.visibilityState === "visible" && autoReconnect) {
+                if ((now - lastReconnectAttemptTs) > 2500) {
+                  lastReconnectAttemptTs = now;
+                  setupOnlineJoin(String(onlineRoomCode || "").trim().toUpperCase()).catch(() => {});
+                }
+              }
+              // Hard timeout: host offline too long -> close room and go home
+              if (hostOfflineSinceTs && (now - hostOfflineSinceTs) > HOST_CLOSE_MS) {
+                autoReconnect = false;
+                showModal({
+                  title: "রুম বন্ধ",
+                  text: "হোস্ট ৫ মিনিটের বেশি অফলাইন ছিল। রুম অটোমেটিক বন্ধ করা হয়েছে।",
+                  buttons: [{ label: "OK", value: true, kind: "primary" }],
+                }).then(() => resetAll());
+              }
+            }
+          }
+
+          // HOST side: rehost if peer got killed (mobile background), and kick offline joiners (pre-game)
+          if (mode === "online_host" && onlineRoomCode) {
+            // kick joiners (only before game start)
+            if (!G) {
+              let changed = false;
+              for (const [tempId, c] of connections.entries()) {
+                if (!c || !c._accepted) continue;
+                const last = c._lastSeen || 0;
+                if (last && (now - last) > JOINER_KICK_MS) {
+                  changed = true;
+                  try { c.send({ type: "kicked", reason: "২ মিনিটের বেশি অফলাইন থাকার কারণে আপনাকে রুম থেকে বের করা হয়েছে।" }); } catch {}
+                  try { c.close(); } catch {}
+                  try { connections.delete(tempId); } catch {}
+                  try { if (lobbyJoined && lobbyJoined.has(tempId)) lobbyJoined.delete(tempId); } catch {}
+                }
+              }
+              if (changed) {
+                updateHostLobbyUI();
+                updateWaitLobbyUI();
+                broadcastLobbyInfo();
+              }
+            }
+
+            // re-host if peer disappeared
+            const peerBad = !peer || peer.destroyed || peer.disconnected;
+            if (peerBad && document.visibilityState === "visible" && (now - lastReconnectAttemptTs) > 2500) {
+              lastReconnectAttemptTs = now;
+              setupOnlineHost(String(onlineRoomCode || "").trim().toUpperCase())
+                .then(() => { try { if (G) setTimeout(() => tick(), 200); } catch {} })
+                .catch(() => {});
+            }
+          }
+        } catch {}
+      }
+      setInterval(onlineMaintenanceTick, 2000);
 
       // Boot:
       // প্রথমে সেভড সেশন রিস্টোর করার চেষ্টা করি যাতে রিলোড দিলে হোমপেজে না গিয়ে
