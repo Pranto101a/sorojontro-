@@ -494,7 +494,7 @@
         letter-spacing:.3px;
         color:var(--warn);
       }
-      .btn.big{padding:14px 16px; border-radius:16px; font-size:15px; font-weight:1100}
+      .btn.big{padding:18px 18px; border-radius:18px; font-size:17px; font-weight:1100}
 
       /* Online flow: create/join + waiting lobby (match screenshots) */
       .onlineFlowWrap{width:100%; max-width:560px; margin:0 auto; padding-top:16vh;}
@@ -627,9 +627,9 @@
           </div>
 
           <div class="grid home card" style="gap:12px;">
-            <button class="btn green" data-mode="local">🟢 পাস-এন্ড-প্লে (এক ডিভাইস)</button>
-            <button class="btn blue" data-mode="ai">🔵 AI মোড (আপনি বনাম বট)</button>
-            <button class="btn dark" data-mode="online_menu">🌐 অনলাইন মাল্টিপ্লেয়ার</button>
+            <button class="btn big green" data-mode="local">🟢 পাস-এন্ড-প্লে (এক ডিভাইস)</button>
+            <button class="btn big blue" data-mode="ai">🔵 AI মোড (আপনি বনাম বট)</button>
+            <button class="btn big dark" data-mode="online_menu">🌐 অনলাইন মাল্টিপ্লেয়ার</button>
             <div id="offline-note" class="notice hidden">
               আপনি এখন অফলাইন। ইন্টারনেট ছাড়াই <b>Local</b> এবং <b>AI</b> মোড খেলতে পারবেন। অনলাইন মোড চালাতে ইন্টারনেট (ডাটা) লাগবে।
             </div>
@@ -2466,7 +2466,7 @@
               }
             }
             // otherwise reject late join
-            try { conn.send({ type: "room_closed" }); } catch {}
+            try { conn.send({ type: "room_closed", reason: "খেলা ইতিমধ্যে শুরু হয়েছে—নতুন করে জয়েন করা যাবে না।" }); } catch {}
             try { conn.close(); } catch {}
             connections.delete(tempConnId);
             if (lobbyJoined && lobbyJoined.has(tempConnId)) lobbyJoined.delete(tempConnId);
@@ -2583,7 +2583,7 @@
           if (btnJoin) btnJoin.disabled = false;
           showModal({
             title: "রুম বন্ধ",
-            text: "হোস্ট রুম বন্ধ করেছে (বা গেম শুরু হয়েছে) — এখন নতুন করে জয়েন করা যাবে না।",
+            text: data.reason || "হোস্ট রুম বন্ধ করেছে — এখন নতুন করে জয়েন করা যাবে না।",
             buttons: [{ label: "OK", value: true, kind: "primary" }],
           }).then(() => {
             // host রুম বন্ধ করলে ক্লায়েন্টকে অটো হোমে পাঠাই
@@ -4689,7 +4689,7 @@
         if (mode === "online_host") {
           try {
             for (const [, conn] of connections.entries()) {
-              try { conn.send({ type: "room_closed" }); } catch {}
+              try { conn.send({ type: "room_closed", reason: "হোস্ট হোমে চলে গেছে — রুম বন্ধ করা হয়েছে।" }); } catch {}
               try { conn.close(); } catch {}
             }
           } catch {}
