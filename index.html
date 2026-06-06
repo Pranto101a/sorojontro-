@@ -5160,8 +5160,69 @@
         }
         if (note) note.classList.toggle("hidden", online);
       }
-      window.addEventListener("online", updateConnectivityUI);
-      window.addEventListener("offline", updateConnectivityUI);
+      let _wentOffline = false;
+      let _offlineSinceTs = null;
+      const AUTO_RELOAD_KEY = "shorojontro_autoreload_ts";
+      function canAutoReload() {
+        try {
+          const last = Number(sessionStorage.getItem(AUTO_RELOAD_KEY) || 0);
+          // avoid reload loops when network flaps
+          if (Date.now() - last < 15000) return false;
+          sessionStorage.setItem(AUTO_RELOAD_KEY, String(Date.now()));
+          return true;
+        } catch {
+          return false;
+        }
+      }
+
+      window.addEventListener("offline", () => {
+        _wentOffline = true;
+        _offlineSinceTs = Date.now();
+        updateConnectivityUI();
+        // show status if user is in online room
+        try {
+          if (mode === "online_join" && onlineRoomCode) {
+            setJoinStatus("আপনি অফলাইন। অনলাইনে ফিরলে অটো কানেক্ট/রিলোড হবে…", true);
+            setRoomStatus("error", "রুম স্ট্যাটাস: অফলাইন ❌");
+          }
+          if (mode === "online_host" && onlineRoomCode) {
+            setRoomStatus("error", "রুম স্ট্যাটাস: অফলাইন ❌");
+          }
+        } catch {}
+      });
+
+      window.addEventListener("online", () => {
+        updateConnectivityUI();
+        const dur = _offlineSinceTs ? (Date.now() - _offlineSinceTs) : 0;
+        _offlineSinceTs = null;
+        if (!_wentOffline) return;
+        _wentOffline = false;
+
+        // If user was in an online room, auto reload once (preferred) so they don't need to press reload.
+        if (mode && mode.startsWith("online") && onlineRoomCode && dur > 1200 && canAutoReload()) {
+          try {
+            if (mode === "online_join") setJoinStatus("অনলাইনে ফিরে এসেছেন—অটো রিলোড হচ্ছে…", true);
+            setRoomStatus("pending", "রুম স্ট্যাটাস: পুনরায় সংযোগ হচ্ছে…");
+          } catch {}
+          setTimeout(() => { try { location.reload(); } catch {} }, 250);
+          return;
+        }
+
+        // Fallback: immediate reconnect attempt without full reload
+        try {
+          if (mode === "online_join" && onlineRoomCode) {
+            setJoinStatus("অনলাইনে ফিরে এসেছেন—রুমে আবার কানেক্ট হচ্ছে…", true);
+            setRoomStatus("pending", "রুম স্ট্যাটাস: পুনরায় সংযোগ হচ্ছে…");
+            lastReconnectAttemptTs = 0;
+            setupOnlineJoin(String(onlineRoomCode || "").trim().toUpperCase()).catch(() => {});
+          }
+          if (mode === "online_host" && onlineRoomCode) {
+            setRoomStatus("pending", "রুম স্ট্যাটাস: পুনরায় খুলছে…");
+            lastReconnectAttemptTs = 0;
+            setupOnlineHost(String(onlineRoomCode || "").trim().toUpperCase()).catch(() => {});
+          }
+        } catch {}
+      });
 
       // ------------------------------------------------------------
       // Online maintenance: keepalive, auto-reconnect, offline timeouts
