@@ -879,8 +879,9 @@
             🏆 বিজয়ী: <span id="winner-name">-</span>
           </div>
           <div class="footerHint" style="margin-top:8px;">অভিনন্দন! চাইলে নতুন ম্যাচ শুরু করতে পারেন।</div>
-          <div style="margin-top:12px;">
+          <div style="margin-top:12px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
             <button id="btn-new-match" class="btn primary">Restart the Match</button>
+            <button id="btn-exit-online" class="btn danger hidden">Exit</button>
           </div>
         </div>
 
@@ -1104,6 +1105,7 @@
       const panelLogs = $("panel-logs");
       const playersPlaceholder = $("players-placeholder");
       const btnNewMatch = $("btn-new-match");
+      const btnExitOnline = $("btn-exit-online");
       const gameOverPanel = $("gameover-panel");
       const winnerNameEl = $("winner-name");
 
@@ -2085,6 +2087,7 @@
         if (gameOverPanel) gameOverPanel.classList.toggle("hidden", !isGameOver);
         if (winnerNameEl) winnerNameEl.textContent = G.gameOver?.winnerName || "-";
         if (btnNewMatch) btnNewMatch.classList.toggle("hidden", false);
+        if (btnExitOnline) btnExitOnline.classList.toggle("hidden", !(isGameOver && mode && mode.startsWith("online")));
         $("action-area")?.classList.toggle("hidden", isGameOver);
 
         // header stats
@@ -4877,14 +4880,25 @@
         // Online Host: হোস্ট বের হলে রুম/সার্ভার অটো ক্লোজ হবে (সবাইকে জানিয়ে)
         if (mode === "online_host") {
           try {
-            for (const [, conn] of connections.entries()) {
+            const conns = [...connections.values()];
+            for (const conn of conns) {
+              // Give the message a tiny chance to flush before closing.
               try { conn.send({ type: "room_closed", reason: "হোস্ট হোমে চলে গেছে — রুম বন্ধ করা হয়েছে।" }); } catch {}
-              try { conn.close(); } catch {}
             }
+            setTimeout(() => {
+              for (const conn of conns) {
+                try { conn.close(); } catch {}
+              }
+            }, 120);
           } catch {}
         }
         // close peer if any
-        try { if (peer) peer.destroy(); } catch {}
+        if (mode === "online_host") {
+          const p = peer;
+          setTimeout(() => { try { p && p.destroy && p.destroy(); } catch {} }, 160);
+        } else {
+          try { if (peer) peer.destroy(); } catch {}
+        }
         peer = null;
         connections = new Map();
         pendingPromptResolvers = new Map();
@@ -5103,6 +5117,11 @@
       btnRules.onclick = () => showRules();
       btnBack.onclick = () => resetAll();
       btnNewMatch?.addEventListener("click", () => restartMatch());
+      btnExitOnline?.addEventListener("click", () => {
+        // Online game finished: Exit to home.
+        // If host exits, close the room for everyone.
+        resetAll();
+      });
       btnSound?.addEventListener("click", () => {
         audioEnabled = !audioEnabled;
         saveSoundPref();
