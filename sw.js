@@ -1,77 +1,93 @@
-/* Simple offline cache for this static SPA (GitHub Pages friendly). */
-const CACHE_NAME = "";
+const CACHE = "shorojontro-v5";
 
-// We intentionally keep this list small; the runtime cache below will pick up
-// the rest of the assets as you play.
-const PRECACHE_URLS = [
-  "./",
-  "./index.html",
-  "./404.html",
-  "./manifest.webmanifest",
-  "./favicon.svg",
-  "./robots.txt",
-  "./opengraph.jpg"
+// Works on root deploy (Render) and subpath deploy (GitHub Pages)
+const SCOPE_URL = new URL(self.registration.scope);
+const abs = (p) => new URL(p, SCOPE_URL).toString();
+const INDEX_URL = abs("index.html");
+
+// Precache core app shell + assets for offline Local/AI play.
+// (Online multiplayer still requires internet.)
+const PRECACHE = [
+  abs("./"),
+  INDEX_URL,
+  abs("manifest.webmanifest"),
+  abs("sw.js"),
+
+  // backgrounds
+  abs("assets/bg.jpg"),
+  abs("assets/home_bg.jpg"),
+  abs("assets/game_bg.jpg"),
+  abs("assets/pass_bg.jpg"),
+  abs("assets/ui_bg.jpg"),
+  abs("assets/gaming_bg.jpg"),
+
+  // icons
+  abs("icons/icon-192.png"),
+  abs("icons/icon-512.png"),
+
+  // role images
+  abs("images/bir_bikrom.jpg"),
+  abs("images/mamdo_homdo.jpg"),
+  abs("images/brohmodotto.jpg"),
+  abs("images/betal.jpg"),
+  abs("images/petuk_chondro.jpg"),
+  abs("images/arun.jpg"),
+  abs("images/kalu_dakat.jpg"),
+  abs("images/chichke_chor.jpg"),
+  abs("images/nantu_miah.jpg"),
 ];
 
 self.addEventListener("install", (event) => {
+  self.skipWaiting();
   event.waitUntil(
-    caches
-      .open(CACHE_NAME)
-      .then((cache) => cache.addAll(PRECACHE_URLS))
-      .then(() => self.skipWaiting())
+    caches.open(CACHE).then((c) =>
+      c.addAll(PRECACHE)
+    )
   );
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    (async () => {
-      const keys = await caches.keys();
-      await Promise.all(keys.map((k) => (k === CACHE_NAME ? null : caches.delete(k))));
-      await self.clients.claim();
-    })()
+    caches.keys().then((keys) =>
+      Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
+    ).then(() => self.clients.claim())
   );
 });
 
-function isNavigationRequest(request) {
-  return request.mode === "navigate" || (request.method === "GET" && request.headers.get("accept")?.includes("text/html"));
-}
-
 self.addEventListener("fetch", (event) => {
-  const { request } = event;
-  if (request.method !== "GET") return;
+  const req = event.request;
+  if (req.method !== "GET") return;
+  const url = new URL(req.url);
+  // Only handle same-origin requests
+  if (url.origin !== self.location.origin) return;
+  // PeerJS signaling should always go to network
+  if (url.pathname.startsWith("/peerjs")) return;
 
-  // SPA navigation fallback (important for offline + deep links)
-  if (isNavigationRequest(request)) {
+  // Network-first for navigation (HTML), fallback to cached app shell
+  if (req.mode === "navigate") {
     event.respondWith(
-      (async () => {
-        try {
-          const network = await fetch(request);
-          const cache = await caches.open(CACHE_NAME);
-          cache.put("./index.html", network.clone());
-          return network;
-        } catch {
-          const cached = await caches.match("./index.html", { ignoreSearch: true });
-          return cached || new Response("Offline", { status: 503, headers: { "Content-Type": "text/plain" } });
-        }
-      })()
+      fetch(req)
+        .then((res) => {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(INDEX_URL, copy));
+          return res;
+        })
+        .catch(() => caches.match(INDEX_URL))
     );
     return;
   }
 
-  // For JS/CSS/images: cache-first, then network (and store for next time)
+  // Cache-first for static assets, with runtime caching
   event.respondWith(
-    (async () => {
-      // Do NOT ignore query params for static assets; our site uses ?v=... cache-busting.
-      const cached = await caches.match(request);
+    caches.match(req).then((cached) => {
       if (cached) return cached;
-      try {
-        const network = await fetch(request);
-        const cache = await caches.open(CACHE_NAME);
-        cache.put(request, network.clone());
-        return network;
-      } catch {
-        return new Response("", { status: 504 });
-      }
-    })()
+      return fetch(req)
+        .then((res) => {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(req, copy));
+          return res;
+        })
+        .catch(() => cached);
+    })
   );
 });
